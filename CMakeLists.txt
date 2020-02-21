@@ -47,7 +47,7 @@ endif()
 
 add_subdirectory(src)
 
-if(WIN32 AND BUILD_PYTHON)
+if(BUILD_PYTHON)
   message(STATUS "Getting SWIG: ...")
   # Download and unpack swig at configure time
   configure_file(${CMAKE_CURRENT_LIST_DIR}/CMakeLists.swig swig-download/CMakeLists.txt)
@@ -64,7 +64,11 @@ if(WIN32 AND BUILD_PYTHON)
     message(FATAL_ERROR "Build step for swig failed: ${result}")
   endif()
 
-  set(SWIG_EXECUTABLE ${CMAKE_BINARY_DIR}/swig/swig.exe)
+  if(WIN32)
+    set(SWIG_EXECUTABLE ${CMAKE_BINARY_DIR}/swig/swig.exe)
+  else()
+    set(SWIG_EXECUTABLE ${CMAKE_BINARY_DIR}/swig/swig)
+  endif()
   message(STATUS "Getting SWIG: ...DONE")
 endif()
 
