@@ -50,7 +50,7 @@ add_subdirectory(src)
 if(WIN32 AND BUILD_PYTHON)
   message(STATUS "Getting SWIG: ...")
   # Download and unpack swig at configure time
-  configure_file(${CMAKE_CURRENT_LIST_DIR}/CMakeLists.txt.swig swig-download/CMakeLists.txt)
+  configure_file(${CMAKE_CURRENT_LIST_DIR}/CMakeLists.swig swig-download/CMakeLists.txt)
   execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
     RESULT_VARIABLE result
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/swig-download )
