@@ -22,18 +22,3 @@ target_include_directories(
   ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
 )
 
-#install(
-#  TARGETS ${PROJECT_NAME}
-#  EXPORT gtirbTargets
-#  INCLUDES
-#  DESTINATION include
-#  RUNTIME DESTINATION bin
-#  LIBRARY DESTINATION lib
-#  ARCHIVE DESTINATION lib
-#)
-#install(FILES ${${PROJECT_NAME}_H} DESTINATION include/gtirb)
-#install(DIRECTORY "${CMAKE_BINARY_DIR}/include/proto" DESTINATION include)
-#install(FILES "${CMAKE_BINARY_DIR}/include/gtirb/version.h"
-#        DESTINATION include/gtirb
-#)
-

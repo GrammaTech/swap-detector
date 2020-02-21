@@ -14,24 +14,6 @@ project(
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/src)
-if(WIN32)
-  set(CMAKE_DEBUG_POSTFIX
-      "d"
-      CACHE STRING "add a postfix, usually d on windows"
-  )
-endif()
-set(CMAKE_RELEASE_POSTFIX
-    ""
-    CACHE STRING "add a postfix, usually empty on windows"
-)
-set(CMAKE_RELWITHDEBINFO_POSTFIX
-    ""
-    CACHE STRING "add a postfix, usually empty on windows"
-)
-set(CMAKE_MINSIZEREL_POSTFIX
-    ""
-    CACHE STRING "add a postfix, usually empty on windows"
-)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -65,18 +47,34 @@ endif()
 
 add_subdirectory(src)
 
-if(WIN32 AND (BUILD_PYTHON OR BUILD_JAVA OR BUILD_DOTNET))
+if(WIN32 AND BUILD_PYTHON)
   message(STATUS "Getting SWIG: ...")
-  include(swig.cmake)
+  # Download and unpack swig at configure time
+  configure_file(${CMAKE_CURRENT_LIST_DIR}/CMakeLists.txt.swig swig-download/CMakeLists.txt)
+  execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/swig-download )
+  if(result)
+    message(FATAL_ERROR "CMake step for swig failed: ${result}")
+  endif()
+  execute_process(COMMAND ${CMAKE_COMMAND} --build .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/swig-download )
+  if(result)
+    message(FATAL_ERROR "Build step for swig failed: ${result}")
+  endif()
+
+  set(SWIG_EXECUTABLE ${CMAKE_BINARY_DIR}/swig/swig.exe)
   message(STATUS "Getting SWIG: ...DONE")
 endif()
 
-if (BUILD_PYTHON OR BUILD_JAVA OR BUILD_DOTNET)
+if (BUILD_PYTHON)
   add_subdirectory(swig)
 endif()
 
 option(SWAPPED_ARGS_BUILD_TESTS "Build tests." ON)
 if(SWAPPED_ARGS_BUILD_TESTS)
+  message(STATUS "Getting googletest: ...")
   # Download and unpack googletest at configure time
   configure_file(CMakeLists.googletest googletest-download/CMakeLists.txt)
   execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
@@ -91,6 +89,7 @@ if(SWAPPED_ARGS_BUILD_TESTS)
   if(result)
     message(FATAL_ERROR "Build step for googletest failed: ${result}")
   endif()
+  message(STATUS "Getting googletest: ...DONE")
 
   # Prevent overriding the parent project's compiler/linker
   # settings on Windows
@@ -101,6 +100,6 @@ if(SWAPPED_ARGS_BUILD_TESTS)
   add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
                    ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
                    EXCLUDE_FROM_ALL)
-                   
+  
   add_subdirectory(test)
 endif()
