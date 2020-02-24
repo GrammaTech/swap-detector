@@ -24,9 +24,9 @@ else()
     SOURCE_DIR "${CMAKE_BINARY_DIR}/swig"
     UPDATE_COMMAND ""
     CONFIGURE_COMMAND ./autogen.sh
-    COMMAND ./configure
-    BUILD_COMMAND "make"
-    INSTALL_COMMAND ""
+    COMMAND ./configure --prefix=${CMAKE_BINARY_DIR}/swig/install
+    BUILD_COMMAND make
+    INSTALL_COMMAND make install
     TEST_COMMAND ""
     LOG_DOWNLOAD ON
     LOG_CONFIGURE ON

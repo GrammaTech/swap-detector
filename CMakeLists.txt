@@ -66,11 +66,12 @@ if(SWAPPED_ARGS_BUILD_PYTHON)
     message(FATAL_ERROR "Build step for swig failed: ${result}")
   endif()
 
+  # Tell CMake where to find the swig executable, which then sets up the other
+  # cmake variables needed for include and link libraries.
   if(WIN32)
     set(SWIG_EXECUTABLE ${CMAKE_BINARY_DIR}/swig/swig.exe)
   else()
-    set(SWIG_EXECUTABLE ${CMAKE_BINARY_DIR}/swig/swig)
-    set(SWIG_DIR ${CMAKE_BINARY_DIR}/swig)
+    set(SWIG_EXECUTABLE ${CMAKE_BINARY_DIR}/swig/install/bin/swig)
   endif()
   message(STATUS "Getting SWIG: ...DONE")
 endif()
