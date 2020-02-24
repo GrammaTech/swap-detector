@@ -47,7 +47,9 @@ endif()
 
 add_subdirectory(src)
 
-if(BUILD_PYTHON)
+option(SWAPPED_ARGS_BUILD_PYTHON "Build python SWIG bindings." OFF)
+
+if(SWAPPED_ARGS_BUILD_PYTHON)
   message(STATUS "Getting SWIG: ...")
   # Download and unpack swig at configure time
   configure_file(${CMAKE_CURRENT_LIST_DIR}/CMakeLists.swig swig-download/CMakeLists.txt)
@@ -73,7 +75,7 @@ if(BUILD_PYTHON)
   message(STATUS "Getting SWIG: ...DONE")
 endif()
 
-if (BUILD_PYTHON)
+if (SWAPPED_ARGS_BUILD_PYTHON)
   add_subdirectory(swig)
 endif()
 

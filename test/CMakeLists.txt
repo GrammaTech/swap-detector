@@ -1,5 +1,5 @@
 add_subdirectory(cpp)
-#if(BUILD_PYTHON)
+#if(SWAPPED_ARGS_BUILD_PYTHON)
 #    add_subdirectory(python)
 #endif()
 
