@@ -1,0 +1,17 @@
+variables:
+    DOCKER_REGISTRY: "docker.grammatech.com"
+    LOCAL_IMAGE_NAME: "swapped-arg-checker-lib-$CI_PIPELINE_ID-$CI_BUILD_REF_NAME"
+
+before_script:
+  - docker info
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $DOCKER_REGISTRY
+
+stages:
+  - everything
+
+tests:
+  stage: everything
+  script:
+    - docker build -f Dockerfile -t ${LOCAL_IMAGE_NAME} .
+    - docker run ${LOCAL_IMAGE_NAME}
+    - docker rmi -f ${LOCAL_IMAGE_NAME}
