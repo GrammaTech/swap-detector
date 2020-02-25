@@ -21,4 +21,3 @@ TEST(IdentifierSplitting, split) {
   EXPECT_THAT(Splitter.split("fooBAR"), testing::ElementsAre("foo", "BAR"));
   EXPECT_THAT(Splitter.split("FOObar"), testing::ElementsAre("FOObar"));
 }
-
