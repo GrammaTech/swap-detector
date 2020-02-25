@@ -3,11 +3,13 @@ set(PROJECT_NAME SwappedArgChecker)
 # specify header files
 set(${PROJECT_NAME}_H
     "${CMAKE_SOURCE_DIR}/include/Compiler.hpp"
+    "${CMAKE_SOURCE_DIR}/include/IdentifierSplitting.hpp"
     "${CMAKE_SOURCE_DIR}/include/SwappedArgChecker.hpp"
 )
 
 # specify source files
 set(${PROJECT_NAME}_SRC
+    IdentifierSplitting.cpp
     SwappedArgChecker.cpp
 )
 

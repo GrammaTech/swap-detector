@@ -2,6 +2,7 @@ set(PROJECT_NAME TestSwappedArgsCpp)
 
 enable_testing()
 include_directories(${GTEST_INCLUDE_DIRS})
+include_directories(${GMOCK_INCLUDE_DIRS})
 
 add_compile_options(-DDEBUG)
 
@@ -9,6 +10,7 @@ set(${PROJECT_NAME}_H)
 
 set(${PROJECT_NAME}_SRC
     Foo.test.cpp
+    IdentifierSplitting.test.cpp
 )
 
 if(UNIX AND NOT WIN32)
@@ -22,7 +24,7 @@ add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
 set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER "test/cpp")
 
 target_link_libraries(
-  ${PROJECT_NAME} ${SYSLIBS} ${Boost_LIBRARIES} gtest gtest_main SwappedArgChecker
+  ${PROJECT_NAME} ${SYSLIBS} ${Boost_LIBRARIES} gtest gmock gtest_main SwappedArgChecker
 )
 
 # Add tests to make test
