@@ -7,8 +7,9 @@ IdentifierSplitter::split(const std::string& Input) const {
   // lowercase to uppercase, or when finding a hard word boundary like _.
   // This does not do anything special to handle double underscores, leading
   // or trailing underscores, etc. It's just a placeholder for testing.
-  std::vector<std::string> Ret;
+  // FIXME: use of islower() and isupper() depends on the current C locale.
 
+  std::vector<std::string> Ret;
   const char *WordStart = Input.data();
   bool PrevCharWasLower = std::islower(*WordStart);
   for (const char *CurLoc = WordStart, *End = WordStart + Input.length();
