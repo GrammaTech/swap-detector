@@ -11,4 +11,3 @@ public:
 };
 
 #endif // GT_SWAPPED_ARG_IDENTIFIER_SPLITTING_H
-

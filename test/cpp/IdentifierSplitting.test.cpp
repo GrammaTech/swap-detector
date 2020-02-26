@@ -1,6 +1,6 @@
-#include "gtest/gtest.h"
-#include "gmock/gmock.h"
 #include "IdentifierSplitting.hpp"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 TEST(IdentifierSplitting, split) {
   IdentifierSplitter Splitter;

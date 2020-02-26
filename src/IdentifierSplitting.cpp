@@ -10,7 +10,7 @@ IdentifierSplitter::split(const std::string& Input) const {
   // FIXME: use of islower() and isupper() depends on the current C locale.
 
   std::vector<std::string> Ret;
-  const char *WordStart = Input.data();
+  const char* WordStart = Input.data();
   bool PrevCharWasLower = std::islower(*WordStart);
   for (const char *CurLoc = WordStart, *End = WordStart + Input.length();
        CurLoc < End; ++CurLoc) {
@@ -36,4 +36,3 @@ IdentifierSplitter::split(const std::string& Input) const {
 
   return Ret;
 }
-
