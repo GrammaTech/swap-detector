@@ -66,8 +66,8 @@ public:
   // @param site Details about the call site.
   // @param report_callback The callback to call for each swapped argument
   //                        problem.
-  void CheckSite(const CallSite &site,
-                 std::function<void(const Result &)> report_callback);
+  void CheckSite(const CallSite& site,
+                 std::function<void(const Result&)> report_callback);
 };
 
 #endif // GT_SWAPPED_ARG_CHECKER_H
