@@ -44,6 +44,7 @@ public:
 
 // A swapped argument error.
 class Result {
+public:
   using ArgumentIndex = std::variant<size_t, std::string>;
 
   // Indices of the swapped arguments.
