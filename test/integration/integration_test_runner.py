@@ -17,8 +17,12 @@ with args.input as f:
     for fname, func in doc['functions'].items():
       decl_attrs = func.get("declAttrs", {})
       param_names = None
-      callee_line = decl_attrs["location"].get("lineNo", 0)
-      callee_file = doc['fileNameMap'][decl_attrs["location"].get("file")]
+      callee_line = None
+      callee_file = None
+
+      if "location" in decl_attrs:
+        callee_line = decl_attrs["location"].get("lineNo")
+        callee_file = doc['fileNameMap'][decl_attrs["location"].get("file")]
 
       if "params" in decl_attrs:
         param_names = []
@@ -33,6 +37,7 @@ with args.input as f:
             proc_args += param_names
           caller_line = site['site'].get("lineNo", 0)
           caller_file = doc['fileNameMap'][site['site'].get("file")]
-          proc_args.extend(['--callee_file', callee_file, '--callee_line', str(callee_line)])
+          if callee_line is not None and callee_file is not None:
+            proc_args.extend(['--callee_file', callee_file, '--callee_line', str(callee_line)])
           proc_args.extend(['--caller_file', caller_file, '--caller_line', str(caller_line)])
           subprocess.call(proc_args)

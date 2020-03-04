@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <iostream>
 #include <limits>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -41,30 +42,28 @@ explodeCallSiteArguments(const std::vector<std::string>& Args) {
 // error information should the check fail.
 static bool runCheck(const std::string& FunctionName,
                      const std::vector<std::string>& Args,
-                     const std::vector<std::string>& Params,
+                     const std::optional<std::vector<std::string>>& Params,
                      const std::string& CallerFile, size_t CallerLineNum,
-                     const std::string& CalleeFile, size_t CalleeLineNum) {
+                     const std::optional<std::string>& CalleeFile,
+                     std::optional<size_t> CalleeLineNum) {
   CalleeDescriptor Callee;
   Callee.callee = FunctionName;
   Callee.param_names = Params;
-  Callee.file = CalleeFile;
-  Callee.line_num = CalleeLineNum;
 
   CallSite Site;
   Site.callee = Callee;
-  Site.file = CallerFile;
-  Site.line_num = CallerLineNum;
   Site.positional_arg_names = explodeCallSiteArguments(Args);
 
   bool Failed = false;
   Checker Check;
-  Check.CheckSite(Site, [&Failed, &Site](const Result& R) {
+  Check.CheckSite(Site, [&](const Result& R) {
     Failed = true;
-    std::cerr << "ERROR (" << Site.file << ":" << Site.line_num
+    std::cerr << "ERROR (" << CallerFile << ":" << CallerLineNum
               << "): " << Site.callee.callee << " has swapped arguments "
               << std::get<size_t>(R.arg1) << " and " << std::get<size_t>(R.arg2)
               << " with a score of " << R.score << std::endl;
-    std::cerr << "NOTE (" << Site.callee.file << ":" << Site.callee.line_num
+    std::cerr << "NOTE (" << CalleeFile.value_or("<unknown>") << ":"
+              << CalleeLineNum.value_or(std::numeric_limits<size_t>::max())
               << "): callee declared here" << std::endl;
   });
   return !Failed;
@@ -74,18 +73,19 @@ static void printUsage() {
   std::cout << "--function <name>\n"
             << "--caller_file <name>\n"
             << "--caller_line <number>\n"
-            << "--callee_file <name>\n"
-            << "--callee_line <number>\n"
             << "--args <arg1, arg2, ...argN>\n"
-            << "--params <param1, param2, ...paramN>\n";
+            << "*OPTIONAL* --callee_file <name>\n"
+            << "*OPTIONAL* --callee_line <number>\n"
+            << "*OPTIONAL* --params <param1, param2, ...paramN>\n";
 }
 
 int main(int argc, char* argv[]) {
-  std::string FunctionName, CallerFileName, CalleeFileName;
-  size_t CallerLineNumber = std::numeric_limits<size_t>::max(),
-         CalleeLineNumber = std::numeric_limits<size_t>::max();
+  std::string FunctionName, CallerFileName;
+  size_t CallerLineNumber = std::numeric_limits<size_t>::max();
+  std::optional<std::string> CalleeFileName;
+  std::optional<size_t> CalleeLineNumber;
   std::vector<std::string> Args;
-  std::vector<std::string> Params;
+  std::optional<std::vector<std::string>> Params;
 
   for (int i = 0; i < argc; ++i) {
     std::string Arg(argv[i]);
@@ -118,11 +118,7 @@ int main(int argc, char* argv[]) {
   }
 
   // Sanity checking.
-  if (FunctionName.empty() || Args.size() != Params.size() ||
-      CallerFileName.empty() ||
-      CallerLineNumber == std::numeric_limits<size_t>::max() ||
-      CalleeFileName.empty() ||
-      CalleeLineNumber == std::numeric_limits<size_t>::max()) {
+  if (FunctionName.empty() || CallerFileName.empty()) {
     printUsage();
     return EXIT_FAILURE;
   }
