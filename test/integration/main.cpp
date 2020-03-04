@@ -36,6 +36,8 @@ explodeCallSiteArguments(const std::vector<std::string>& Args) {
   return Ret;
 }
 
+// Returns true on success, false on failure. Responsible for printing out the
+// error information should the check fail.
 static bool RunCheck(const std::string& FunctionName,
                      const std::vector<std::string>& Args,
                      const std::vector<std::string>& Params) {
@@ -55,7 +57,7 @@ static bool RunCheck(const std::string& FunctionName,
               << std::get<size_t>(R.arg1) << " and " << std::get<size_t>(R.arg2)
               << " with a score of " << R.score << std::endl;
     });
-  return Failed;
+  return !Failed;
 }
 
 // Usage: <app> --function <name>
@@ -84,5 +86,7 @@ int main(int argc, char* argv[]) {
   if (FunctionName.empty() || Args.size() != Params.size())
     return EXIT_FAILURE;
 
-  RunCheck(FunctionName, Args, Params);
+  if (!RunCheck(FunctionName, Args, Params))
+    return EXIT_FAILURE;
+  return EXIT_SUCCESS;
 }
