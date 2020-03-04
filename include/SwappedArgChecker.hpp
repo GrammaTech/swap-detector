@@ -16,6 +16,11 @@ public:
   // The fully qualified name of the callee.
   std::string callee;
 
+  // The file (path?) to the source file containing the callee declaration.
+  std::string file;
+  // The line number of the callee declaration.
+  size_t line_num;
+
   // The names of the formal parameters from the callee.
   std::optional<std::vector<std::string>> param_names;
 
@@ -30,11 +35,20 @@ public:
 
   // Details about the callee of the call site.
   CalleeDescriptor callee;
+
+  // The file (path?) to the source file containing the call site.
+  std::string file;
+
+  // The line number of the call site.
+  size_t line_num;
+
   // Name expressions for each positional argument.
   std::vector<ArgumentNames> positional_arg_names;
+
   // Used for languages that support named arguments. Unused for checking
   // C/C++.
   std::optional<std::map<std::string, ArgumentNames>> named_arg_names;
+
   // Used by the checker to do false-positive reduction. The callback
   // returns N lines relative to the call site location.
   std::optional<std::function<std::string(size_t, size_t)>>
