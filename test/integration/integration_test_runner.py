@@ -17,12 +17,12 @@ with args.input as f:
     for fname, func in doc['functions'].items():
       decl_attrs = func.get("declAttrs", {})
       param_names = None
-      callee_line = None
-      callee_file = None
+      call_decl_line = None
+      call_decl_file = None
 
       if "location" in decl_attrs:
-        callee_line = decl_attrs["location"].get("lineNo")
-        callee_file = doc['fileNameMap'][decl_attrs["location"].get("file")]
+        call_decl_line = decl_attrs["location"].get("lineNo")
+        call_decl_file = doc['fileNameMap'][decl_attrs["location"].get("file")]
 
       if "params" in decl_attrs:
         param_names = []
@@ -35,9 +35,9 @@ with args.input as f:
           if param_names is not None:
             proc_args.append('--params')
             proc_args += param_names
-          caller_line = site['site'].get("lineNo", 0)
-          caller_file = doc['fileNameMap'][site['site'].get("file")]
-          if callee_line is not None and callee_file is not None:
-            proc_args.extend(['--callee_file', callee_file, '--callee_line', str(callee_line)])
-          proc_args.extend(['--caller_file', caller_file, '--caller_line', str(caller_line)])
+          call_site_line = site['site'].get("lineNo", 0)
+          call_site_file = doc['fileNameMap'][site['site'].get("file")]
+          if call_decl_line is not None and call_decl_file is not None:
+            proc_args.extend(['--call_decl_file', call_decl_file, '--call_decl_line', str(call_decl_line)])
+          proc_args.extend(['--call_site_file', call_site_file, '--call_site_line', str(call_site_line)])
           subprocess.call(proc_args)
