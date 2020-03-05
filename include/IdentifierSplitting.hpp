@@ -7,7 +7,7 @@
 
 class SWAPPED_ARG_EXPORT IdentifierSplitter {
 public:
-  std::vector<std::string> split(const std::string& Input) const;
+  std::vector<std::string> split(const std::string& input) const;
 };
 
 #endif // GT_SWAPPED_ARG_IDENTIFIER_SPLITTING_H
