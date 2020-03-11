@@ -3,6 +3,7 @@ set(PROJECT_NAME TestSwappedArgsCpp)
 enable_testing()
 include_directories(${GTEST_INCLUDE_DIRS})
 include_directories(${GMOCK_INCLUDE_DIRS})
+include_directories(${SWAPPED_ARG_INCLUDE_DIR})
 
 add_compile_options(-DDEBUG)
 
