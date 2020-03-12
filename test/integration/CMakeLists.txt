@@ -6,6 +6,7 @@ set(${PROJECT_NAME}_SRC
     main.cpp
 )
 
+include_directories(${SWAPPED_ARG_INCLUDE_DIR})
 add_executable(${PROJECT_NAME} ${${PROJECT_NAME}_H} ${${PROJECT_NAME}_SRC})
 set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER "test/integration")
 

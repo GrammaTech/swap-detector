@@ -10,6 +10,8 @@
 #include <variant>
 #include <vector>
 
+namespace swapped_arg {
+
 // A description of a function being called.
 class CallDeclDescriptor {
 public:
@@ -72,4 +74,5 @@ public:
                  std::function<void(const Result&)> reportCallback);
 };
 
+} // end namespace swapped_arg
 #endif // GT_SWAPPED_ARG_CHECKER_H

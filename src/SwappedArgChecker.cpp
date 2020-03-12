@@ -1,6 +1,8 @@
 #include "SwappedArgChecker.hpp"
 #include <random>
 
+using namespace swapped_arg;
+
 std::string Result::debugStr() const { return ""; }
 
 Checker::Checker(std::string modelPath) {}

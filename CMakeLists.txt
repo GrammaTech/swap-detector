@@ -45,6 +45,14 @@ if(UNIX AND NOT BUILD_SHARED_LIBS)
   add_compile_options(-static)
 endif()
 
+if(NOT ${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
+  add_compile_options(-fPIC)
+endif()
+
+set(SWAPPED_ARG_INCLUDE_DIR
+  "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  CACHE INTERNAL ""
+)
 add_subdirectory(src)
 
 option(SWAPPED_ARGS_BUILD_PYTHON "Build python SWIG bindings." OFF)

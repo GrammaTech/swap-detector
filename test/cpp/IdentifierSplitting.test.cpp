@@ -2,6 +2,8 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+using namespace swapped_arg;
+
 TEST(IdentifierSplitting, split) {
   IdentifierSplitter Splitter;
 

@@ -1,6 +1,8 @@
 #include "IdentifierSplitting.hpp"
 #include <cctype>
 
+using namespace swapped_arg;
+
 std::vector<std::string>
 IdentifierSplitter::split(const std::string& input) const {
   // This is a rudimentary implementation that splits only on transition from

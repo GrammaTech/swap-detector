@@ -7,6 +7,8 @@
 #include <variant>
 #include <vector>
 
+using namespace swapped_arg;
+
 // Reads a single argument.
 static std::string getArg(int idx, int count, char* args[]) {
   if (idx < count)
