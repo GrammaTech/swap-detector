@@ -5,6 +5,7 @@
 
 #include <functional>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <variant>
@@ -45,6 +46,39 @@ public:
   // TODO: name of function containing the call site
 };
 
+// Basic functionality to represent a score card from a failing check result.
+class ScoreCard {
+public:
+  // What kind of checking strategies are supported.
+  enum CheckerKind {
+    ParameterNameBased,
+    UsageStatisticsBased,
+  };
+
+  // The checker's confidence in this being a true positive, 0-100. Tools
+  // can map this value to be in their "native" range.
+  virtual float score() const = 0;
+
+  // The kind of checker the score card provides results for.
+  virtual CheckerKind kind() const = 0;
+};
+
+class ParameterNameBasedScoreCard : public ScoreCard {
+  float Score;
+public:
+  explicit ParameterNameBasedScoreCard(float score) : Score(score) {}
+  CheckerKind kind() const override { return ParameterNameBased; }
+  float score() const override { return Score; }
+};
+
+class UsageStatisticsBasedScoreCard : public ScoreCard {
+  float Score;
+public:
+  explicit UsageStatisticsBasedScoreCard(float score) : Score(score) {}
+  CheckerKind kind() const override { return UsageStatisticsBased; }
+  float score() const override { return Score; }
+};
+
 // A swapped argument error.
 class Result {
 public:
@@ -54,9 +88,7 @@ public:
   ArgumentIndex arg1;
   ArgumentIndex arg2;
 
-  // The checker's confidence in this being a true positive, 0-100. Tools
-  // can map this value to be in their "native" range.
-  double score;
+  std::unique_ptr<const ScoreCard> score;
 
   std::string debugStr() const;
 };
