@@ -88,6 +88,9 @@ public:
   ArgumentIndex arg1;
   ArgumentIndex arg2;
 
+  // The specific morpheme in each argument that was swapped.
+  std::string morpheme1, morpheme2;
+
   std::unique_ptr<const ScoreCard> score;
 
   std::string debugStr() const;

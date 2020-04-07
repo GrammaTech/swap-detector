@@ -21,6 +21,8 @@ void Checker::CheckSite(const CallSite& site,
     r.arg2 = pos != site.positionalArgNames.size() ? pos + 1 : pos - 1;
     r.score = std::make_unique<ParameterNameBasedScoreCard>(
                 std::generate_canonical<double, 32>(gen) * 100.0);
+    r.morpheme1 = site.positionalArgNames[std::get<size_t>(r.arg1) - 1][0];
+    r.morpheme2 = site.positionalArgNames[std::get<size_t>(r.arg2) - 1][0];
     reportCallback(r);
   }
 }
