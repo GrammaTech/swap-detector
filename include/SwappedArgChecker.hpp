@@ -5,7 +5,6 @@
 
 #include <functional>
 #include <map>
-#include <memory>
 #include <optional>
 #include <string>
 #include <variant>
@@ -86,6 +85,8 @@ class Result {
 public:
   using ArgumentIndex = std::variant<size_t, std::string>;
 
+  ~Result() { delete score; }
+
   // Indices of the swapped arguments.
   ArgumentIndex arg1;
   ArgumentIndex arg2;
@@ -93,7 +94,9 @@ public:
   // The specific morpheme in each argument that was swapped.
   std::string morpheme1, morpheme2;
 
-  std::unique_ptr<const ScoreCard> score;
+  // NOTE: I'd love to use std::unique_ptr here but there is no SWIG support
+  // for that type yet.
+  const ScoreCard *score = nullptr;
 
   std::string debugStr() const;
 };

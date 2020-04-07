@@ -19,7 +19,7 @@ void Checker::CheckSite(const CallSite& site,
     // The swapped argument will either be the one right after the random
     // choice, or right before (if the random choice was the last argument).
     r.arg2 = pos != site.positionalArgNames.size() ? pos + 1 : pos - 1;
-    r.score = std::make_unique<ParameterNameBasedScoreCard>(
+    r.score = new ParameterNameBasedScoreCard(
                 std::generate_canonical<double, 32>(gen) * 100.0);
     r.morpheme1 = site.positionalArgNames[std::get<size_t>(r.arg1) - 1][0];
     r.morpheme2 = site.positionalArgNames[std::get<size_t>(r.arg2) - 1][0];
