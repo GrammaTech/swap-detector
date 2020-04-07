@@ -55,6 +55,8 @@ public:
     UsageStatisticsBased,
   };
 
+  virtual ~ScoreCard() = default;
+
   // The checker's confidence in this being a true positive, 0-100. Tools
   // can map this value to be in their "native" range.
   virtual float score() const = 0;
