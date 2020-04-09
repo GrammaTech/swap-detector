@@ -64,7 +64,7 @@ static bool runCheck(const std::string& functionName,
               << "): " << site.callDecl.fullyQualifiedName
               << " has swapped arguments " << std::get<size_t>(res.arg1)
               << " and " << std::get<size_t>(res.arg2) << " with a score of "
-              << res.score << std::endl;
+              << res.score->score() << std::endl;
     std::cerr << "NOTE (" << callDeclFile.value_or("<unknown>") << ":"
               << callDeclLineNum.value_or(std::numeric_limits<size_t>::max())
               << "): callee declared here" << std::endl;

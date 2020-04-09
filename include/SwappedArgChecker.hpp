@@ -45,18 +45,58 @@ public:
   // TODO: name of function containing the call site
 };
 
+// Basic functionality to represent a score card from a failing check result.
+class ScoreCard {
+public:
+  // What kind of checking strategies are supported.
+  enum CheckerKind {
+    ParameterNameBased,
+    UsageStatisticsBased,
+  };
+
+  virtual ~ScoreCard() = default;
+
+  // The checker's confidence in this being a true positive, 0-100. Tools
+  // can map this value to be in their "native" range.
+  virtual float score() const = 0;
+
+  // The kind of checker the score card provides results for.
+  virtual CheckerKind kind() const = 0;
+};
+
+class ParameterNameBasedScoreCard : public ScoreCard {
+  float Score;
+public:
+  explicit ParameterNameBasedScoreCard(float score) : Score(score) {}
+  CheckerKind kind() const override { return ParameterNameBased; }
+  float score() const override { return Score; }
+};
+
+class UsageStatisticsBasedScoreCard : public ScoreCard {
+  float Score;
+public:
+  explicit UsageStatisticsBasedScoreCard(float score) : Score(score) {}
+  CheckerKind kind() const override { return UsageStatisticsBased; }
+  float score() const override { return Score; }
+};
+
 // A swapped argument error.
 class Result {
 public:
   using ArgumentIndex = std::variant<size_t, std::string>;
 
+  ~Result() { delete score; }
+
   // Indices of the swapped arguments.
   ArgumentIndex arg1;
   ArgumentIndex arg2;
 
-  // The checker's confidence in this being a true positive, 0-100. Tools
-  // can map this value to be in their "native" range.
-  double score;
+  // The specific morpheme in each argument that was swapped.
+  std::string morpheme1, morpheme2;
+
+  // NOTE: I'd love to use std::unique_ptr here but there is no SWIG support
+  // for that type yet.
+  const ScoreCard *score = nullptr;
 
   std::string debugStr() const;
 };
