@@ -110,6 +110,7 @@ class SWAPPED_ARG_EXPORT Checker {
   CheckerConfiguration Opts;
 
 public:
+  Checker() = default;
   explicit Checker(const CheckerConfiguration& opts) : Opts(opts) {}
 
   // Checks for all argument swap errors at a given call site.
@@ -120,6 +121,9 @@ public:
                  std::function<void(const Result&)> reportCallback);
 
   const CheckerConfiguration& Options() const { return Opts; }
+  void setOptions(const CheckerConfiguration& opts) {
+    Opts = opts;
+  }
 };
 
 } // end namespace swapped_arg
