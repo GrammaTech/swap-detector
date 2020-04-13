@@ -5,7 +5,6 @@ using namespace swapped_arg;
 
 std::string Result::debugStr() const { return ""; }
 
-Checker::Checker(std::string modelPath) {}
 void Checker::CheckSite(const CallSite& site,
                         std::function<void(const Result&)> reportCallback) {
   std::random_device rd;
