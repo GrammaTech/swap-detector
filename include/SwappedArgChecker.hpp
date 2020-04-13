@@ -101,16 +101,10 @@ public:
   std::string debugStr() const;
 };
 
-struct SWAPPED_ARG_EXPORT CheckerConfiguration {
-  // Filesystem-native path to the model database.
-  std::string ModelPath;
-};
-
 class SWAPPED_ARG_EXPORT Checker {
-  CheckerConfiguration Opts;
-
 public:
-  explicit Checker(const CheckerConfiguration& opts) : Opts(opts) {}
+  explicit Checker(
+      std::string modelPath = "" /*TODO: additional configuration stuff */);
 
   // Checks for all argument swap errors at a given call site.
   // @param site Details about the call site.
@@ -118,8 +112,6 @@ public:
   //                        problem.
   void CheckSite(const CallSite& site,
                  std::function<void(const Result&)> reportCallback);
-
-  const CheckerConfiguration& Options() const { return Opts; }
 };
 
 } // end namespace swapped_arg

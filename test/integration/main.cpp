@@ -57,7 +57,7 @@ static bool runCheck(const std::string& functionName,
   site.positionalArgNames = explodeCallSiteArguments(args);
 
   bool failed = false;
-  Checker check({});
+  Checker check;
   check.CheckSite(site, [&](const Result& res) {
     failed = true;
     std::cerr << "ERROR (" << callSiteFile << ":" << callSiteLineNum
