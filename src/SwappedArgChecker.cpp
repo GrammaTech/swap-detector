@@ -18,6 +18,56 @@ struct MorphemeSet {
 
 std::string Result::debugStr() const { return ""; }
 
+// Calculates the indicies for all the pair-wise combinations from a list
+// of totalCount length.
+static std::vector<std::pair<size_t, size_t>>
+pairwise_combinations(size_t totalCount) {
+  std::vector<std::pair<size_t, size_t>> ret;
+  std::vector<bool> bitset(2, true);
+  bitset.resize(totalCount, false);
+
+  do {
+    size_t first = ~0U, second = ~0U;
+    for (size_t idx = 0; idx < totalCount; ++idx) {
+      if (bitset[idx]) {
+        if (first == ~0U)
+          first = idx;
+        else {
+          assert(second == ~0U);
+          second = idx;
+        }
+      }
+    }
+    assert(first != ~0U && second != ~0U);
+    ret.push_back(std::make_pair(first, second));
+  } while (std::prev_permutation(bitset.begin(), bitset.end()));
+  return ret;
+}
+
+// Returns true if the checker reported any issues; false otherwise.
+static bool
+runCoverBasedChecker(const std::pair<MorphemeSet, MorphemeSet>& params,
+                     const std::pair<MorphemeSet, MorphemeSet>& args,
+                     std::function<void(const Result&)> reportCallback) {
+  // Randomly decide to fail for the given params and args, just assume the
+  // first morpheme is what caused the problem when reporting. This is
+  // placeholder code for the actual implementation.
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  if (std::generate_canonical<double, 32>(gen) < .25) {
+    Result r;
+    r.arg1 = args.first.Position;
+    r.arg2 = args.second.Position;
+    r.score = new ParameterNameBasedScoreCard(
+                std::generate_canonical<double, 32>(gen) * 100.0);
+    r.morpheme1 = *args.first.Morphemes.begin();
+    r.morpheme2 = *args.second.Morphemes.begin();
+    reportCallback(r);
+    return true;
+  }
+  return false;
+}
+
 void Checker::CheckSite(const CallSite& site,
                         std::function<void(const Result&)> reportCallback) {
   // Walk through each combination of argument pairs from the call side.
@@ -72,6 +122,8 @@ void Checker::CheckSite(const CallSite& site,
       if (arg1Morphemes.Morphemes.empty() || arg2Morphemes.Morphemes.empty())
         continue;
 
+      // FIXME: run the statistics-based checker if the cover-based checker
+      // does not find any issues.
       runCoverBasedChecker(std::make_pair(param1Morphemes, param2Morphemes),
                            std::make_pair(arg1Morphemes, arg2Morphemes),
                            reportCallback);
