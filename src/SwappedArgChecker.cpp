@@ -43,22 +43,13 @@ void Checker::CheckSite(const CallSite& site,
       // split the parmeter identifiers into individual morphemes and verify
       // that we have at least one usable morpheme for both parameters. Split
       // into a set so that the morphemes must be unique.
-      // FIXME: change IdentifierSplitter::split() to return a set instead of
-      // a vector. We want to deal with sets of morphemes, so bar_bar_bar would
-      // split to [bar] instead of [bar, bar, bar]. Then get rid of the
-      // intermediary std::vector here.
       IdentifierSplitter splitter;
-      std::vector<std::string> param1MorphemesV = splitter.split(
-                                   decl.paramNames->at(pairwiseArgs.first)),
-                               param2MorphemesV = splitter.split(
-                                   decl.paramNames->at(pairwiseArgs.second));
-      MorphemeSet param1Morphemes, param2Morphemes;
-      param1Morphemes.Position = pairwiseArgs.first + 1;
-      param1Morphemes.Morphemes.insert(param1MorphemesV.begin(),
-                                       param1MorphemesV.end());
-      param2Morphemes.Position = pairwiseArgs.second + 1;
-      param2Morphemes.Morphemes.insert(param2MorphemesV.begin(),
-                                       param2MorphemesV.end());
+      MorphemeSet param1Morphemes{
+          splitter.split(decl.paramNames->at(pairwiseArgs.first)),
+          pairwiseArgs.first + 1},
+          param2Morphemes{
+              splitter.split(decl.paramNames->at(pairwiseArgs.second)),
+              pairwiseArgs.second + 1};
       if (param1Morphemes.Morphemes.empty() ||
           param2Morphemes.Morphemes.empty())
         continue;
@@ -70,15 +61,13 @@ void Checker::CheckSite(const CallSite& site,
       MorphemeSet arg1Morphemes, arg2Morphemes;
       arg1Morphemes.Position = pairwiseArgs.first + 1;
       for (const auto& arg : args[pairwiseArgs.first]) {
-        for (const auto& morpheme : splitter.split(arg)) {
-          arg1Morphemes.Morphemes.insert(morpheme);
-        }
+        const auto& morphs = splitter.split(arg);
+        arg1Morphemes.Morphemes.insert(morphs.begin(), morphs.end());
       }
       arg2Morphemes.Position = pairwiseArgs.second + 1;
       for (const auto& arg : args[pairwiseArgs.second]) {
-        for (const auto& morpheme : splitter.split(arg)) {
-          arg2Morphemes.Morphemes.insert(morpheme);
-        }
+        const auto& morphs = splitter.split(arg);
+        arg2Morphemes.Morphemes.insert(morphs.begin(), morphs.end());
       }
       if (arg1Morphemes.Morphemes.empty() || arg2Morphemes.Morphemes.empty())
         continue;

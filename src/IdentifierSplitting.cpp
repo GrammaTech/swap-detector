@@ -3,7 +3,7 @@
 
 using namespace swapped_arg;
 
-std::vector<std::string>
+std::set<std::string>
 IdentifierSplitter::split(const std::string& input) const {
   // This is a rudimentary implementation that splits only on transition from
   // lowercase to uppercase, or when finding a hard word boundary like _.
@@ -11,7 +11,7 @@ IdentifierSplitter::split(const std::string& input) const {
   // or trailing underscores, etc. It's just a placeholder for testing.
   // FIXME: use of islower() and isupper() depends on the current C locale.
 
-  std::vector<std::string> ret;
+  std::set<std::string> ret;
   const char* wordStart = input.data();
   bool prevCharWasLower = std::islower(*wordStart);
   for (const char *curLoc = wordStart, *end = wordStart + input.length();
@@ -20,12 +20,12 @@ IdentifierSplitter::split(const std::string& input) const {
       // We've ended the word. Add only if we have an actual word, which
       // handles duplicate underscores.
       if (wordStart != curLoc) {
-        ret.push_back(std::string(wordStart, curLoc));
+        ret.insert(std::string(wordStart, curLoc));
       }
       wordStart = curLoc + 1; // Advance past the _.
     } else if (std::isupper(*curLoc) && prevCharWasLower) {
       // Transitions from lowercase to uppercase are treated as a word boundary.
-      ret.push_back(std::string(wordStart, curLoc));
+      ret.insert(std::string(wordStart, curLoc));
       wordStart = curLoc; // Start at the capital letter.
     }
     prevCharWasLower = std::islower(*curLoc);
@@ -33,7 +33,7 @@ IdentifierSplitter::split(const std::string& input) const {
 
   // Add the last part of the string, if any, to the splits.
   if (wordStart != input.data() + input.length()) {
-    ret.push_back(std::string(wordStart, input.data() + input.length()));
+    ret.insert(std::string(wordStart, input.data() + input.length()));
   }
 
   return ret;
