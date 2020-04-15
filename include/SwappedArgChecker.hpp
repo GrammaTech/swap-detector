@@ -87,7 +87,7 @@ public:
 
   ~Result() { delete score; }
 
-  // Indices of the swapped arguments.
+  // Indices of the swapped arguments. Integer argument indexes are one-based.
   ArgumentIndex arg1;
   ArgumentIndex arg2;
 
