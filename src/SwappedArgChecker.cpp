@@ -110,9 +110,12 @@ void Checker::CheckSite(const CallSite& site,
         continue;
 
       // Do the same thing for arguments, except all argument components are
-      // split into the same set. e.g., foo(bar_baz + quux_baz, 0) would split
-      // the first argument into the set [bar, baz, quux]. Verify there is at
-      // least one usable morpheme for each argument.
+      // split into the same set. e.g., foo(bar.baz(), 0) may split the first
+      // argument into the set [bar, baz]. Verify there is at least one usable
+      // morpheme for each argument. FIXME: Currently, the first argument will
+      // not produce any morphemes because we've not decided to stick with this
+      // approach. If we continue to produce only one identifier per argument,
+      // consider flattening the interface of how we represent arguments.
       auto morphemeCollector = [&args, &splitter](MorphemeSet& m, size_t pos) {
         m.Position = pos + 1;
         for (const auto& arg : args[pos]) {
