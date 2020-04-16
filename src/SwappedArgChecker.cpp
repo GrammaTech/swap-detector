@@ -76,7 +76,7 @@ void Checker::CheckSite(const CallSite& site,
   std::vector<std::pair<size_t, size_t>> argPairs =
       pairwise_combinations(args.size());
   for (const auto& pairwiseArgs : argPairs) {
-    // If there is a corresponding parameter for both arguments, we may be
+    // If there is a corresponding parameter for each argument, we may be
     // able to run the cover-based checker. Consider:
     // void foo(int i, ...); foo(1, 2, 3, 4);
     // as an example of when an argument may not have a corresponding parameter.
@@ -91,7 +91,7 @@ void Checker::CheckSite(const CallSite& site,
         !decl.paramNames->at(pairwiseArgs.second).empty()) {
       // Having verified we might be able to run the cover-based checker, now
       // split the parameter identifiers into individual morphemes and verify
-      // that we have at least one usable morpheme for both parameters. Split
+      // that we have at least one usable morpheme for each parameter. Split
       // into a set so that the morphemes must be unique.
       // FIXME: currently, the stub for IdentifierSplitter has no state and
       // requires no parameterization. If that continues to be true after
@@ -112,7 +112,7 @@ void Checker::CheckSite(const CallSite& site,
       // Do the same thing for arguments, except all argument components are
       // split into the same set. e.g., foo(bar_baz + quux_baz, 0) would split
       // the first argument into the set [bar, baz, quux]. Verify there is at
-      // least one usable morpheme for both arguments.
+      // least one usable morpheme for each argument.
       auto morphemeCollector = [&args, &splitter](MorphemeSet& m, size_t pos) {
         m.Position = pos + 1;
         for (const auto& arg : args[pos]) {
