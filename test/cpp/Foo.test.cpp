@@ -6,5 +6,6 @@ using namespace swapped_arg;
 TEST(Swapping, Stuff) {
   EXPECT_TRUE(true);
 
-  Checker C("test.foo");
+  CheckerConfiguration Opts{"test.foo"};
+  Checker C(Opts);
 }
