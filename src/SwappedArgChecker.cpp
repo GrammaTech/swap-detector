@@ -46,9 +46,9 @@ pairwise_combinations(size_t totalCount) {
 
 // Returns true if the checker reported any issues; false otherwise.
 static bool
-runCoverBasedChecker(const std::pair<MorphemeSet, MorphemeSet>& params,
-                     const std::pair<MorphemeSet, MorphemeSet>& args,
-                     std::function<void(const Result&)> reportCallback) {
+checkForCoverBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
+                       const std::pair<MorphemeSet, MorphemeSet>& args,
+                       std::function<void(const Result&)> reportCallback) {
   // Randomly decide to fail for the given params and args, just assume the
   // first morpheme is what caused the problem when reporting. This is
   // placeholder code for the actual implementation.
@@ -70,7 +70,7 @@ runCoverBasedChecker(const std::pair<MorphemeSet, MorphemeSet>& params,
 
 void Checker::CheckSite(const CallSite& site,
                         std::function<void(const Result&)> reportCallback) {
-  // Walk through each combination of argument pairs from the call side.
+  // Walk through each combination of argument pairs from the call site.
   const std::vector<CallSite::ArgumentNames>& args = site.positionalArgNames;
   const CallDeclDescriptor& decl = site.callDecl;
   std::vector<std::pair<size_t, size_t>> argPairs =
@@ -90,9 +90,14 @@ void Checker::CheckSite(const CallSite& site,
         !decl.paramNames->at(pairwiseArgs.first).empty() &&
         !decl.paramNames->at(pairwiseArgs.second).empty()) {
       // Having verified we might be able to run the cover-based checker, now
-      // split the parmeter identifiers into individual morphemes and verify
+      // split the parameter identifiers into individual morphemes and verify
       // that we have at least one usable morpheme for both parameters. Split
       // into a set so that the morphemes must be unique.
+      // FIXME: currently, the stub for IdentifierSplitter has no state and
+      // requires no parameterization. If that continues to be true after
+      // adding the real implementation, this should be replaced with a free
+      // function. If it does have state, this may also be more natural as a
+      // data member rather than a local.
       IdentifierSplitter splitter;
       MorphemeSet param1Morphemes{
           splitter.split(decl.paramNames->at(pairwiseArgs.first)),
@@ -108,25 +113,28 @@ void Checker::CheckSite(const CallSite& site,
       // split into the same set. e.g., foo(bar_baz + quux_baz, 0) would split
       // the first argument into the set [bar, baz, quux]. Verify there is at
       // least one usable morpheme for both arguments.
+      auto morphemeCollector = [&args, &splitter](MorphemeSet& m, size_t pos) {
+        m.Position = pos + 1;
+        for (const auto& arg : args[pos]) {
+          const auto& morphs = splitter.split(arg);
+          m.Morphemes.insert(morphs.begin(), morphs.end());
+        }
+      };
+
       MorphemeSet arg1Morphemes, arg2Morphemes;
-      arg1Morphemes.Position = pairwiseArgs.first + 1;
-      for (const auto& arg : args[pairwiseArgs.first]) {
-        const auto& morphs = splitter.split(arg);
-        arg1Morphemes.Morphemes.insert(morphs.begin(), morphs.end());
-      }
-      arg2Morphemes.Position = pairwiseArgs.second + 1;
-      for (const auto& arg : args[pairwiseArgs.second]) {
-        const auto& morphs = splitter.split(arg);
-        arg2Morphemes.Morphemes.insert(morphs.begin(), morphs.end());
-      }
+      morphemeCollector(arg1Morphemes, pairwiseArgs.first);
+      morphemeCollector(arg2Morphemes, pairwiseArgs.second);
+
       if (arg1Morphemes.Morphemes.empty() || arg2Morphemes.Morphemes.empty())
         continue;
 
       // FIXME: run the statistics-based checker if the cover-based checker
       // does not find any issues.
-      runCoverBasedChecker(std::make_pair(param1Morphemes, param2Morphemes),
-                           std::make_pair(arg1Morphemes, arg2Morphemes),
-                           reportCallback);
+      if (!checkForCoverBasedSwap(
+              std::make_pair(param1Morphemes, param2Morphemes),
+              std::make_pair(arg1Morphemes, arg2Morphemes), reportCallback)) {
+        std::cout << "running the stats checker (someday)\n";
+      }
     }
   }
 }

@@ -10,6 +10,7 @@ IdentifierSplitter::split(const std::string& input) const {
   // This does not do anything special to handle double underscores, leading
   // or trailing underscores, etc. It's just a placeholder for testing.
   // FIXME: use of islower() and isupper() depends on the current C locale.
+  // FIXME: the API should return case-insensitive morphemes that are lowercase.
 
   std::set<std::string> ret;
   const char* wordStart = input.data();

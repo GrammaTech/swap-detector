@@ -8,8 +8,8 @@
 namespace swapped_arg {
 class SWAPPED_ARG_EXPORT IdentifierSplitter {
 public:
-  // Returns a set of unique morphemes for the identifier. e.g.,
-  // foo_barBaz_bar would result in a set [foo, bar, Baz], not
+  // Returns a set of case-insensitive, unique morphemes for the identifier.
+  // e.g., foo_barBaz_bar would result in a set [foo, bar, baz], not
   // [foo, bar, Baz, bar].
   std::set<std::string> split(const std::string& input) const;
 };
