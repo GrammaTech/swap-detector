@@ -68,6 +68,13 @@ checkForCoverBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
   return false;
 }
 
+// Removes low-quality morphemes from the given set. Returns true if removing
+// the morphemes leaves the set empty, false otherwise.
+static bool removeLowQualityMorphemes(std::set<std::string>& morphemes) {
+  // FIXME: implement the reduction heuristics here.
+  return morphemes.empty();
+}
+
 void Checker::CheckSite(const CallSite& site,
                         std::function<void(const Result&)> reportCallback) {
   // Walk through each combination of argument pairs from the call site.
@@ -105,8 +112,12 @@ void Checker::CheckSite(const CallSite& site,
           param2Morphemes{
               splitter.split(decl.paramNames->at(pairwiseArgs.second)),
               pairwiseArgs.second + 1};
-      if (param1Morphemes.Morphemes.empty() ||
-          param2Morphemes.Morphemes.empty())
+
+      // Having split the parameter identifiers into morphemes, remove any
+      // morphemes that are low quality and bail out if there are no usable
+      // morphemes left for either parameter.
+      if (removeLowQualityMorphemes(param1Morphemes.Morphemes) ||
+          removeLowQualityMorphemes(param2Morphemes.Morphemes))
         continue;
 
       // Do the same thing for arguments, except all argument components are
@@ -128,7 +139,10 @@ void Checker::CheckSite(const CallSite& site,
       morphemeCollector(arg1Morphemes, pairwiseArgs.first);
       morphemeCollector(arg2Morphemes, pairwiseArgs.second);
 
-      if (arg1Morphemes.Morphemes.empty() || arg2Morphemes.Morphemes.empty())
+      // Similar to parameters, remove any low quality morphemes from the
+      // arguments and bail out if this leaves us with no usable morphemes.
+      if (removeLowQualityMorphemes(arg1Morphemes.Morphemes) ||
+          removeLowQualityMorphemes(arg2Morphemes.Morphemes))
         continue;
 
       // FIXME: run the statistics-based checker if the cover-based checker
