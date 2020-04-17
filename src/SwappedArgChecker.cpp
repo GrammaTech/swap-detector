@@ -98,24 +98,24 @@ void Checker::CheckSite(const CallSite& site,
         !decl.paramNames->at(pairwiseArgs.second).empty()) {
       // Having verified we might be able to run the cover-based checker, now
       // split the parameter identifiers into individual morphemes and verify
-      // that we have at least one usable morpheme for each parameter. Split
-      // into a set so that the morphemes must be unique.
+      // that we have at least one usable morpheme for each parameter.
       // FIXME: currently, the stub for IdentifierSplitter has no state and
       // requires no parameterization. If that continues to be true after
       // adding the real implementation, this should be replaced with a free
       // function. If it does have state, this may also be more natural as a
       // data member rather than a local.
       IdentifierSplitter splitter;
-      MorphemeSet param1Morphemes{
-          splitter.split(decl.paramNames->at(pairwiseArgs.first)),
-          pairwiseArgs.first + 1},
-          param2Morphemes{
-              splitter.split(decl.paramNames->at(pairwiseArgs.second)),
-              pairwiseArgs.second + 1};
+      const std::vector<std::string>& params = *decl.paramNames;
+      MorphemeSet param1Morphemes{splitter.split(params[pairwiseArgs.first]),
+                                  pairwiseArgs.first + 1},
+          param2Morphemes{splitter.split(params[pairwiseArgs.second]),
+                          pairwiseArgs.second + 1};
 
       // Having split the parameter identifiers into morphemes, remove any
       // morphemes that are low quality and bail out if there are no usable
-      // morphemes left for either parameter.
+      // morphemes left for either parameter. Consider: void foo(int i, int j);
+      // as an example of when a morpheme may be of sufficiently low quality to
+      // warrant ignoring it.
       if (removeLowQualityMorphemes(param1Morphemes.Morphemes) ||
           removeLowQualityMorphemes(param2Morphemes.Morphemes))
         continue;
