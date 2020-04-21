@@ -6,6 +6,7 @@
 #include <functional>
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <variant>
 #include <vector>
@@ -108,6 +109,16 @@ struct SWAPPED_ARG_EXPORT CheckerConfiguration {
 
 class SWAPPED_ARG_EXPORT Checker {
   CheckerConfiguration Opts;
+
+  struct MorphemeSet {
+    std::set<std::string> Morphemes;
+    size_t Position;
+  };
+
+  bool
+  checkForCoverBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
+                         const std::pair<MorphemeSet, MorphemeSet>& args,
+                         std::function<void(const Result&)> reportCallback);
 
 public:
   Checker() = default;

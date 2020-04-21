@@ -4,17 +4,9 @@
 #include <cassert>
 #include <iostream>
 #include <random>
-#include <set>
-#include <string>
 #include <utility>
-#include <vector>
 
 using namespace swapped_arg;
-
-struct MorphemeSet {
-  std::set<std::string> Morphemes;
-  size_t Position;
-};
 
 std::string Result::debugStr() const { return ""; }
 
@@ -45,10 +37,28 @@ pairwise_combinations(size_t totalCount) {
 }
 
 // Returns true if the checker reported any issues; false otherwise.
-static bool
-checkForCoverBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
-                       const std::pair<MorphemeSet, MorphemeSet>& args,
-                       std::function<void(const Result&)> reportCallback) {
+bool Checker::checkForCoverBasedSwap(
+    const std::pair<MorphemeSet, MorphemeSet>& params,
+    const std::pair<MorphemeSet, MorphemeSet>& args,
+    std::function<void(const Result&)> reportCallback) {
+  // We have already verified that the morpheme sets are not empty, but we
+  // also need to verify that the number of morphemes is the same between each
+  // parameter and argument. FIXME: Roger thinks that we may relax the
+  // requirement that the number of morphemes are the same between params and
+  // args, but isn't 100% certain yet. If that happens, we will have to figure
+  // out what to do with the "extra" morphemes in terms of scoring coverage.
+  const std::set<std::string>&param1Morphs = params.first.Morphemes,
+        &param2Morphs = params.second.Morphemes;
+  const std::set<std::string>&arg1Morphs = args.first.Morphemes,
+        &arg2Morphs = args.second.Morphemes;
+  assert(!param1Morphs.empty() && !param2Morphs.empty() &&
+         !arg1Morphs.empty() && !arg2Morphs.empty());
+
+  if (param1Morphs.size() != param2Morphs.size() ||
+      arg1Morphs.size() != arg2Morphs.size() ||
+      param1Morphs.size() != arg1Morphs.size())
+    return false;
+
   // Randomly decide to fail for the given params and args, just assume the
   // first morpheme is what caused the problem when reporting. This is
   // placeholder code for the actual implementation.
@@ -60,8 +70,8 @@ checkForCoverBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
     r.arg2 = args.second.Position;
     r.score = new ParameterNameBasedScoreCard(
                 std::generate_canonical<double, 32>(gen) * 100.0);
-    r.morpheme1 = *args.first.Morphemes.begin();
-    r.morpheme2 = *args.second.Morphemes.begin();
+    r.morpheme1 = *arg1Morphs.begin();
+    r.morpheme2 = *arg2Morphs.begin();
     reportCallback(r);
     return true;
   }
