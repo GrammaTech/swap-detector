@@ -105,6 +105,11 @@ public:
 struct SWAPPED_ARG_EXPORT CheckerConfiguration {
   // Filesystem-native path to the model database.
   std::string ModelPath;
+  float PessimisticMorphemeMatchBias = 1.1f;
+  float OptimisticMorphemeMatchBias = -0.1f;
+  float ExistingMorphemeMatchMax = 0.5f;
+  float SwappedMorphemeMatchMin = 0.75f;
+  float UnvettedCoverScoreDeratingFactor = 0.8f;
 };
 
 class SWAPPED_ARG_EXPORT Checker {
@@ -115,10 +120,20 @@ class SWAPPED_ARG_EXPORT Checker {
     size_t Position;
   };
 
+  // TODO: remove this debugging utility when done.
+  void print(const MorphemeSet& m, bool isArg);
+
   bool
   checkForCoverBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
                          const std::pair<MorphemeSet, MorphemeSet>& args,
                          std::function<void(const Result&)> reportCallback);
+
+  float anyAreSynonyms(const std::string& morpheme,
+                       const MorphemeSet& potentialSynonyms);
+
+  enum class Bias { Pessimistic, Optimistic };
+  float morphemesMatch(const MorphemeSet& arg, const MorphemeSet& param,
+                       Bias bias);
 
 public:
   Checker() = default;

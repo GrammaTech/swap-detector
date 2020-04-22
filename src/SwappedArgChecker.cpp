@@ -2,8 +2,8 @@
 #include "IdentifierSplitting.hpp"
 #include <algorithm>
 #include <cassert>
+#include <experimental/iterator>
 #include <iostream>
-#include <random>
 #include <utility>
 
 using namespace swapped_arg;
@@ -36,6 +36,14 @@ pairwise_combinations(size_t totalCount) {
   return ret;
 }
 
+void Checker::print(const MorphemeSet& m, bool isArg) {
+  std::cout << (isArg ? "argument" : "parameter") << " MorphemeSet ("
+            << m.Position << "): ";
+  std::copy(m.Morphemes.begin(), m.Morphemes.end(),
+            std::experimental::make_ostream_joiner(std::cout, ", "));
+  std::cout << std::endl;
+}
+
 // Returns true if the checker reported any issues; false otherwise.
 bool Checker::checkForCoverBasedSwap(
     const std::pair<MorphemeSet, MorphemeSet>& params,
@@ -54,28 +62,88 @@ bool Checker::checkForCoverBasedSwap(
   assert(!param1Morphs.empty() && !param2Morphs.empty() &&
          !arg1Morphs.empty() && !arg2Morphs.empty());
 
+  print(params.first, false);
+  print(params.second, false);
+  print(args.first, true);
+  print(args.second, true);
+
   if (param1Morphs.size() != param2Morphs.size() ||
       arg1Morphs.size() != arg2Morphs.size() ||
       param1Morphs.size() != arg1Morphs.size())
     return false;
 
-  // Randomly decide to fail for the given params and args, just assume the
-  // first morpheme is what caused the problem when reporting. This is
-  // placeholder code for the actual implementation.
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  if (std::generate_canonical<double, 32>(gen) < .25) {
-    Result r;
-    r.arg1 = args.first.Position;
-    r.arg2 = args.second.Position;
-    r.score = new ParameterNameBasedScoreCard(
-                std::generate_canonical<double, 32>(gen) * 100.0);
-    r.morpheme1 = *arg1Morphs.begin();
-    r.morpheme2 = *arg2Morphs.begin();
-    reportCallback(r);
-    return true;
+  // If the morphemes seem good in their current locations, bail out.
+  float mm_ai_pi;
+  if ((mm_ai_pi = morphemesMatch(args.first, params.first, Bias::Optimistic)) >
+      Opts.ExistingMorphemeMatchMax)
+    return false;
+  float mm_aj_pj;
+  if ((mm_aj_pj =
+           morphemesMatch(args.second, params.second, Bias::Optimistic)) >
+      Opts.ExistingMorphemeMatchMax)
+    return false;
+
+  // If the morphemes seem bad when you swap them, bail out.
+  float mm_ai_pj;
+  if ((mm_ai_pj =
+           morphemesMatch(args.first, params.second, Bias::Pessimistic)) <
+      Opts.SwappedMorphemeMatchMin)
+    return false;
+  float mm_aj_pi;
+  if ((mm_aj_pi =
+           morphemesMatch(args.second, params.first, Bias::Pessimistic)) <
+      Opts.SwappedMorphemeMatchMin)
+    return false;
+
+  // TODO: handle numeric suffixes.
+
+  float psi_i = mm_ai_pj / (mm_aj_pj + 0.01f),
+        psi_j = mm_aj_pi / (mm_ai_pi + 0.01f);
+  float worst_psi =
+      std::min(psi_i, psi_j) * Opts.UnvettedCoverScoreDeratingFactor;
+
+  Result r;
+  r.arg1 = args.first.Position;
+  r.arg2 = args.second.Position;
+  r.score = new ParameterNameBasedScoreCard(worst_psi);
+  // FIXME: Determine which argument morpheme was swapped. That information is
+  // not captured by morphemesMatch, which operates on morpheme sets.
+  r.morpheme1 = *arg1Morphs.begin();
+  r.morpheme2 = *arg2Morphs.begin();
+  reportCallback(r);
+  return true;
+}
+
+float Checker::anyAreSynonyms(const std::string& morpheme,
+                              const MorphemeSet& potentialSynonyms) {
+  // FIXME: this is a very basic implementation currently.
+  for (const std::string& synonym : potentialSynonyms.Morphemes) {
+    std::cout << "'" << synonym << "' ";
+    if (synonym == morpheme)
+      return 1.0f;
   }
-  return false;
+  return 0.0f;
+}
+
+float Checker::morphemesMatch(const MorphemeSet& arg, const MorphemeSet& param,
+                              Bias bias) {
+  float biasVal = bias == Bias::Pessimistic ? Opts.PessimisticMorphemeMatchBias
+                                            : Opts.OptimisticMorphemeMatchBias;
+  float extreme = biasVal;
+  std::cout << "test begin (extreme is " << extreme << ")\n";
+  for (const std::string& paramMorph : param.Morphemes) {
+    std::cout << "testing '" << paramMorph << "' against: ";
+    float val = anyAreSynonyms(paramMorph, arg);
+    std::cout << "val = " << val << " ";
+    bool matches = bias == Bias::Pessimistic ? val < extreme : val > extreme;
+    if (matches) {
+      std::cout << "(matched with " << val << ")";
+      extreme = val;
+    }
+    std::cout << "\n";
+  }
+  std::cout << "test end: " << extreme << "\n";
+  return std::clamp(extreme, 0.0f, 1.0f);
 }
 
 // Removes low-quality morphemes from the given set. Returns true if removing
