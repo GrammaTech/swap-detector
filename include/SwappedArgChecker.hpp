@@ -133,7 +133,7 @@ class SWAPPED_ARG_EXPORT Checker {
 
   enum class Bias { Pessimistic, Optimistic };
   float morphemesMatch(const MorphemeSet& arg, const MorphemeSet& param,
-                       Bias bias);
+                       Bias bias, std::string& matchingMorpheme);
 
 public:
   Checker() = default;

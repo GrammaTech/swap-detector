@@ -62,10 +62,12 @@ bool Checker::checkForCoverBasedSwap(
   assert(!param1Morphs.empty() && !param2Morphs.empty() &&
          !arg1Morphs.empty() && !arg2Morphs.empty());
 
-  print(params.first, false);
-  print(params.second, false);
-  print(args.first, true);
-  print(args.second, true);
+  /*
+    print(params.first, false);
+    print(params.second, false);
+    print(args.first, true);
+    print(args.second, true);
+  */
 
   if (param1Morphs.size() != param2Morphs.size() ||
       arg1Morphs.size() != arg2Morphs.size() ||
@@ -73,25 +75,26 @@ bool Checker::checkForCoverBasedSwap(
     return false;
 
   // If the morphemes seem good in their current locations, bail out.
+  std::string ignoredMorph;
   float mm_ai_pi;
-  if ((mm_ai_pi = morphemesMatch(args.first, params.first, Bias::Optimistic)) >
-      Opts.ExistingMorphemeMatchMax)
+  if ((mm_ai_pi = morphemesMatch(args.first, params.first, Bias::Optimistic,
+                                 ignoredMorph)) > Opts.ExistingMorphemeMatchMax)
     return false;
   float mm_aj_pj;
-  if ((mm_aj_pj =
-           morphemesMatch(args.second, params.second, Bias::Optimistic)) >
-      Opts.ExistingMorphemeMatchMax)
+  if ((mm_aj_pj = morphemesMatch(args.second, params.second, Bias::Optimistic,
+                                 ignoredMorph)) > Opts.ExistingMorphemeMatchMax)
     return false;
 
   // If the morphemes seem bad when you swap them, bail out.
+  std::string firstArgMorph;
   float mm_ai_pj;
-  if ((mm_ai_pj =
-           morphemesMatch(args.first, params.second, Bias::Pessimistic)) <
-      Opts.SwappedMorphemeMatchMin)
+  if ((mm_ai_pj = morphemesMatch(args.first, params.second, Bias::Pessimistic,
+                                 firstArgMorph)) < Opts.SwappedMorphemeMatchMin)
     return false;
   float mm_aj_pi;
-  if ((mm_aj_pi =
-           morphemesMatch(args.second, params.first, Bias::Pessimistic)) <
+  std::string secondArgMorph;
+  if ((mm_aj_pi = morphemesMatch(args.second, params.first, Bias::Pessimistic,
+                                 secondArgMorph)) <
       Opts.SwappedMorphemeMatchMin)
     return false;
 
@@ -106,10 +109,8 @@ bool Checker::checkForCoverBasedSwap(
   r.arg1 = args.first.Position;
   r.arg2 = args.second.Position;
   r.score = new ParameterNameBasedScoreCard(worst_psi);
-  // FIXME: Determine which argument morpheme was swapped. That information is
-  // not captured by morphemesMatch, which operates on morpheme sets.
-  r.morpheme1 = *arg1Morphs.begin();
-  r.morpheme2 = *arg2Morphs.begin();
+  r.morpheme1 = firstArgMorph;
+  r.morpheme2 = secondArgMorph;
   reportCallback(r);
   return true;
 }
@@ -118,31 +119,33 @@ float Checker::anyAreSynonyms(const std::string& morpheme,
                               const MorphemeSet& potentialSynonyms) {
   // FIXME: this is a very basic implementation currently.
   for (const std::string& synonym : potentialSynonyms.Morphemes) {
-    std::cout << "'" << synonym << "' ";
-    if (synonym == morpheme)
+    if (synonym == morpheme) {
       return 1.0f;
+    }
   }
   return 0.0f;
 }
 
 float Checker::morphemesMatch(const MorphemeSet& arg, const MorphemeSet& param,
-                              Bias bias) {
+                              Bias bias, std::string& matchingArg) {
   float biasVal = bias == Bias::Pessimistic ? Opts.PessimisticMorphemeMatchBias
                                             : Opts.OptimisticMorphemeMatchBias;
   float extreme = biasVal;
-  std::cout << "test begin (extreme is " << extreme << ")\n";
   for (const std::string& paramMorph : param.Morphemes) {
-    std::cout << "testing '" << paramMorph << "' against: ";
     float val = anyAreSynonyms(paramMorph, arg);
-    std::cout << "val = " << val << " ";
-    bool matches = bias == Bias::Pessimistic ? val < extreme : val > extreme;
-    if (matches) {
-      std::cout << "(matched with " << val << ")";
-      extreme = val;
+    // TODO: if we start to handle actual synonyms or abbreviations instead
+    // of doing exact matches where the result is either 0.0f or 1.0f, the
+    // commented out code should be re-enabled.
+    if (val) {
+      matchingArg = paramMorph;
+      return val;
     }
-    std::cout << "\n";
+    /*
+        bool matches = bias == Bias::Pessimistic ? val < extreme : val >
+       extreme; if (matches) { extreme = val;
+        }
+    */
   }
-  std::cout << "test end: " << extreme << "\n";
   return std::clamp(extreme, 0.0f, 1.0f);
 }
 
