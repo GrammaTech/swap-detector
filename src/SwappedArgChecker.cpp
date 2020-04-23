@@ -146,7 +146,8 @@ float Checker::morphemesMatch(const MorphemeSet& arg, const MorphemeSet& param,
         }
     */
   }
-  return std::clamp(extreme, 0.0f, 1.0f);
+  // return std::clamp(extreme, 0.0f, 1.0f);
+  return 0.0f;
 }
 
 // Removes low-quality morphemes from the given set. Returns true if removing
