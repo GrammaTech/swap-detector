@@ -109,6 +109,9 @@ bool Checker::checkForCoverBasedSwap(
   r.arg1 = args.first.Position;
   r.arg2 = args.second.Position;
   r.score = new ParameterNameBasedScoreCard(worst_psi);
+  // FIXME: this is reporting the argument morphemes as they have been split
+  // by the IdentifierSplitter, which automatically converts the morphemes to
+  // lowercase. It's not clear whether this is the desired reporting behavior.
   r.morpheme1 = firstArgMorph;
   r.morpheme2 = secondArgMorph;
   reportCallback(r);
