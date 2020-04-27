@@ -84,29 +84,26 @@ bool Checker::checkForCoverBasedSwap(
     return false;
 
   // If the morphemes seem good in their current locations, bail out.
-  std::string ignoredMorph;
   float mm_ai_pi;
   if ((mm_ai_pi = morphemesMatch(uniqueMorphsArg1, uniqueMorphsParam1,
-                                 Bias::Optimistic, ignoredMorph)) >
+                                 Bias::Optimistic)) >
       Opts.ExistingMorphemeMatchMax)
     return false;
   float mm_aj_pj;
   if ((mm_aj_pj = morphemesMatch(uniqueMorphsArg2, uniqueMorphsParam2,
-                                 Bias::Optimistic, ignoredMorph)) >
+                                 Bias::Optimistic)) >
       Opts.ExistingMorphemeMatchMax)
     return false;
 
   // If the morphemes seem bad when you swap them, bail out.
-  std::string firstArgMorph;
   float mm_ai_pj;
   if ((mm_ai_pj = morphemesMatch(uniqueMorphsArg1, uniqueMorphsParam2,
-                                 Bias::Pessimistic, firstArgMorph)) <
+                                 Bias::Pessimistic)) <
       Opts.SwappedMorphemeMatchMin)
     return false;
   float mm_aj_pi;
-  std::string secondArgMorph;
   if ((mm_aj_pi = morphemesMatch(uniqueMorphsArg2, uniqueMorphsParam1,
-                                 Bias::Pessimistic, secondArgMorph)) <
+                                 Bias::Pessimistic)) <
       Opts.SwappedMorphemeMatchMin)
     return false;
 
@@ -124,8 +121,8 @@ bool Checker::checkForCoverBasedSwap(
   // FIXME: this is reporting the argument morphemes as they have been split
   // by the IdentifierSplitter, which automatically converts the morphemes to
   // lowercase. It's not clear whether this is the desired reporting behavior.
-  r.morpheme1 = firstArgMorph;
-  r.morpheme2 = secondArgMorph;
+  r.morphemes1 = uniqueMorphsArg1;
+  r.morphemes2 = uniqueMorphsArg2;
   reportCallback(r);
   return true;
 }
@@ -153,14 +150,12 @@ Checker::nonLowEntropyDifference(const std::set<std::string>& lhs,
 }
 
 float Checker::morphemesMatch(const std::set<std::string>& arg,
-                              const std::set<std::string>& param, Bias bias,
-                              std::string& matchingArg) {
+                              const std::set<std::string>& param, Bias bias) {
   BiasComp comp(bias, Opts);
   float extreme = comp.extreme();
   for (const std::string& paramMorph : param) {
     float val = anyAreSynonyms(paramMorph, arg);
     if (comp(val, extreme)) {
-      matchingArg = paramMorph;
       extreme = val;
     }
   }

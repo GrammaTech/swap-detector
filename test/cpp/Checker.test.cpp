@@ -1,4 +1,5 @@
 #include "SwappedArgChecker.hpp"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 using namespace swapped_arg;
@@ -20,8 +21,8 @@ TEST(Swapping, Basics) {
 
   EXPECT_EQ(std::get<size_t>(ActualResult.arg1), 1);
   EXPECT_EQ(std::get<size_t>(ActualResult.arg2), 2);
-  EXPECT_EQ(ActualResult.morpheme1, "dogs");
-  EXPECT_EQ(ActualResult.morpheme2, "cats");
+  EXPECT_THAT(ActualResult.morphemes1, testing::UnorderedElementsAre("dogs"));
+  EXPECT_THAT(ActualResult.morphemes2, testing::UnorderedElementsAre("cats"));
 }
 
 TEST(Swapping, DifferentMorphemeCases) {
@@ -42,8 +43,8 @@ TEST(Swapping, DifferentMorphemeCases) {
 
   EXPECT_EQ(std::get<size_t>(ActualResult.arg1), 1);
   EXPECT_EQ(std::get<size_t>(ActualResult.arg2), 2);
-  EXPECT_EQ(ActualResult.morpheme1, "cats");
-  EXPECT_EQ(ActualResult.morpheme2, "dogs");
+  EXPECT_THAT(ActualResult.morphemes1, testing::UnorderedElementsAre("cats"));
+  EXPECT_THAT(ActualResult.morphemes2, testing::UnorderedElementsAre("dogs"));
 }
 
 TEST(Swapping, DifferentMorphemeCounts) {
@@ -128,8 +129,8 @@ TEST(Swapping, MultipleMorphemes) {
 
   EXPECT_EQ(std::get<size_t>(ActualResult.arg1), 1);
   EXPECT_EQ(std::get<size_t>(ActualResult.arg2), 2);
-  // FIXME: this is not quite right as there are multiple morphemes that have
-  // been swapped. However, we only report one morpheme each currently.
-  EXPECT_EQ(ActualResult.morpheme1, "cats");
-  EXPECT_EQ(ActualResult.morpheme2, "dogs");
+  EXPECT_THAT(ActualResult.morphemes1,
+              testing::UnorderedElementsAre("cats", "silly"));
+  EXPECT_THAT(ActualResult.morphemes2,
+              testing::UnorderedElementsAre("dogs", "lolling"));
 }
