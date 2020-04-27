@@ -4,6 +4,7 @@
 #include <cassert>
 #include <experimental/iterator>
 #include <iostream>
+#include <iterator>
 #include <utility>
 
 using namespace swapped_arg;
@@ -62,39 +63,50 @@ bool Checker::checkForCoverBasedSwap(
   assert(!param1Morphs.empty() && !param2Morphs.empty() &&
          !arg1Morphs.empty() && !arg2Morphs.empty());
 
-  /*
-    print(params.first, false);
-    print(params.second, false);
-    print(args.first, true);
-    print(args.second, true);
-  */
-
   if (param1Morphs.size() != param2Morphs.size() ||
       arg1Morphs.size() != arg2Morphs.size() ||
       param1Morphs.size() != arg1Morphs.size())
     return false;
 
+  // Remove any low entropy or duplicate param morphemes.
+  std::set<std::string> uniqueMorphsParam1 =
+                            nonLowEntropyDifference(param1Morphs, param2Morphs),
+                        uniqueMorphsParam2 =
+                            nonLowEntropyDifference(param2Morphs, param1Morphs);
+  std::set<std::string> uniqueMorphsArg1 =
+                            nonLowEntropyDifference(arg1Morphs, arg2Morphs),
+                        uniqueMorphsArg2 =
+                            nonLowEntropyDifference(arg2Morphs, arg1Morphs);
+
+  // If there are not enough morphemes left after uniquing, then bail out.
+  if (uniqueMorphsParam1.empty() || uniqueMorphsParam2.empty() ||
+      uniqueMorphsArg1.empty() || uniqueMorphsArg2.empty())
+    return false;
+
   // If the morphemes seem good in their current locations, bail out.
   std::string ignoredMorph;
   float mm_ai_pi;
-  if ((mm_ai_pi = morphemesMatch(args.first, params.first, Bias::Optimistic,
-                                 ignoredMorph)) > Opts.ExistingMorphemeMatchMax)
+  if ((mm_ai_pi = morphemesMatch(uniqueMorphsArg1, uniqueMorphsParam1,
+                                 Bias::Optimistic, ignoredMorph)) >
+      Opts.ExistingMorphemeMatchMax)
     return false;
   float mm_aj_pj;
-  if ((mm_aj_pj = morphemesMatch(args.second, params.second, Bias::Optimistic,
-                                 ignoredMorph)) > Opts.ExistingMorphemeMatchMax)
+  if ((mm_aj_pj = morphemesMatch(uniqueMorphsArg2, uniqueMorphsParam2,
+                                 Bias::Optimistic, ignoredMorph)) >
+      Opts.ExistingMorphemeMatchMax)
     return false;
 
   // If the morphemes seem bad when you swap them, bail out.
   std::string firstArgMorph;
   float mm_ai_pj;
-  if ((mm_ai_pj = morphemesMatch(args.first, params.second, Bias::Pessimistic,
-                                 firstArgMorph)) < Opts.SwappedMorphemeMatchMin)
+  if ((mm_ai_pj = morphemesMatch(uniqueMorphsArg1, uniqueMorphsParam2,
+                                 Bias::Pessimistic, firstArgMorph)) <
+      Opts.SwappedMorphemeMatchMin)
     return false;
   float mm_aj_pi;
   std::string secondArgMorph;
-  if ((mm_aj_pi = morphemesMatch(args.second, params.first, Bias::Pessimistic,
-                                 secondArgMorph)) <
+  if ((mm_aj_pi = morphemesMatch(uniqueMorphsArg2, uniqueMorphsParam1,
+                                 Bias::Pessimistic, secondArgMorph)) <
       Opts.SwappedMorphemeMatchMin)
     return false;
 
@@ -119,9 +131,9 @@ bool Checker::checkForCoverBasedSwap(
 }
 
 float Checker::anyAreSynonyms(const std::string& morpheme,
-                              const MorphemeSet& potentialSynonyms) {
+                              const std::set<std::string>& potentialSynonyms) {
   // FIXME: this is a very basic implementation currently.
-  for (const std::string& synonym : potentialSynonyms.Morphemes) {
+  for (const std::string& synonym : potentialSynonyms) {
     if (synonym == morpheme) {
       return 1.0f;
     }
@@ -129,28 +141,30 @@ float Checker::anyAreSynonyms(const std::string& morpheme,
   return 0.0f;
 }
 
-float Checker::morphemesMatch(const MorphemeSet& arg, const MorphemeSet& param,
-                              Bias bias, std::string& matchingArg) {
-  float biasVal = bias == Bias::Pessimistic ? Opts.PessimisticMorphemeMatchBias
-                                            : Opts.OptimisticMorphemeMatchBias;
-  float extreme = biasVal;
-  for (const std::string& paramMorph : param.Morphemes) {
+std::set<std::string>
+Checker::nonLowEntropyDifference(const std::set<std::string>& lhs,
+                                 const std::set<std::string>& rhs) const {
+  std::set<std::string> ret;
+  // FIXME: consider whether we want to handle low-entropy morphemes. For now,
+  // do a set difference.
+  std::set_difference(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(),
+                      std::inserter(ret, ret.begin()));
+  return ret;
+}
+
+float Checker::morphemesMatch(const std::set<std::string>& arg,
+                              const std::set<std::string>& param, Bias bias,
+                              std::string& matchingArg) {
+  BiasComp comp(bias, Opts);
+  float extreme = comp.extreme();
+  for (const std::string& paramMorph : param) {
     float val = anyAreSynonyms(paramMorph, arg);
-    // TODO: if we start to handle actual synonyms or abbreviations instead
-    // of doing exact matches where the result is either 0.0f or 1.0f, the
-    // commented out code should be re-enabled.
-    if (val) {
+    if (comp(val, extreme)) {
       matchingArg = paramMorph;
-      return val;
+      extreme = val;
     }
-    /*
-        bool matches = bias == Bias::Pessimistic ? val < extreme : val >
-       extreme; if (matches) { extreme = val;
-        }
-    */
   }
-  // return std::clamp(extreme, 0.0f, 1.0f);
-  return 0.0f;
+  return std::clamp(extreme, 0.0f, 1.0f);
 }
 
 // Removes low-quality morphemes from the given set. Returns true if removing
@@ -162,8 +176,13 @@ static bool removeLowQualityMorphemes(std::set<std::string>& morphemes) {
 
 void Checker::CheckSite(const CallSite& site,
                         std::function<void(const Result&)> reportCallback) {
-  // Walk through each combination of argument pairs from the call site.
+  // If there aren't at least two arguments to the call, there's no swapping
+  // possible, so bail out early.
   const std::vector<CallSite::ArgumentNames>& args = site.positionalArgNames;
+  if (args.size() < 2)
+    return;
+
+  // Walk through each combination of argument pairs from the call site.
   const CallDeclDescriptor& decl = site.callDecl;
   std::vector<std::pair<size_t, size_t>> argPairs =
       pairwise_combinations(args.size());

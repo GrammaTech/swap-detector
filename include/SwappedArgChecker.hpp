@@ -129,11 +129,36 @@ class SWAPPED_ARG_EXPORT Checker {
                          std::function<void(const Result&)> reportCallback);
 
   float anyAreSynonyms(const std::string& morpheme,
-                       const MorphemeSet& potentialSynonyms);
+                       const std::set<std::string>& potentialSynonyms);
 
+  // Helper struct for comparing against the bias when matching morphemes.
   enum class Bias { Pessimistic, Optimistic };
-  float morphemesMatch(const MorphemeSet& arg, const MorphemeSet& param,
-                       Bias bias, std::string& matchingMorpheme);
+  struct BiasComp {
+    explicit BiasComp(Bias b, const CheckerConfiguration& Opts)
+        : Less(b == Bias::Pessimistic),
+          Extreme(b == Bias::Pessimistic ? Opts.PessimisticMorphemeMatchBias
+                                         : Opts.OptimisticMorphemeMatchBias) {}
+
+    bool operator()(float lhs, float rhs) const {
+      if (Less)
+        return lhs < rhs;
+      return lhs > rhs;
+    }
+
+    float extreme() const { return Extreme; }
+
+  private:
+    bool Less;
+    float Extreme;
+  };
+
+  std::set<std::string>
+  nonLowEntropyDifference(const std::set<std::string>& lhs,
+                          const std::set<std::string>& rhs) const;
+
+  float morphemesMatch(const std::set<std::string>& arg,
+                       const std::set<std::string>& param, Bias bias,
+                       std::string& matchingMorpheme);
 
 public:
   Checker() = default;
