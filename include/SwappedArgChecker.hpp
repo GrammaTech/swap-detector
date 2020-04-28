@@ -115,18 +115,37 @@ struct SWAPPED_ARG_EXPORT CheckerConfiguration {
 class SWAPPED_ARG_EXPORT Checker {
   CheckerConfiguration Opts;
 
+  // Get the parameter name, if any, at the given zero-based index.
+  std::optional<std::string> getParamName(const CallSite& site,
+                                          size_t pos) const {
+    if (!site.callDecl.paramNames)
+      return std::nullopt;
+    if (pos >= site.callDecl.paramNames->size())
+      return std::nullopt;
+    return (*site.callDecl.paramNames)[pos];
+  }
+
   struct MorphemeSet {
     std::set<std::string> Morphemes;
     size_t Position;
   };
 
+  // Gets the last identifier in the argument name, if any, at the given
+  // zero-based index.
+  std::optional<std::string> getLastArgName(const CallSite& site,
+                                            size_t pos) const {
+    if (pos >= site.positionalArgNames.size())
+      return std::nullopt;
+    return site.positionalArgNames[pos].back();
+  }
+
   // TODO: remove this debugging utility when done.
   void print(const MorphemeSet& m, bool isArg);
 
-  bool
-  checkForCoverBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
-                         const std::pair<MorphemeSet, MorphemeSet>& args,
-                         std::function<void(const Result&)> reportCallback);
+  bool checkForCoverBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
+                              const std::pair<MorphemeSet, MorphemeSet>& args,
+                              std::function<void(const Result&)> reportCallback,
+                              const CallSite& callSite);
 
   float anyAreSynonyms(const std::string& morpheme,
                        const std::set<std::string>& potentialSynonyms);

@@ -49,7 +49,7 @@ void Checker::print(const MorphemeSet& m, bool isArg) {
 bool Checker::checkForCoverBasedSwap(
     const std::pair<MorphemeSet, MorphemeSet>& params,
     const std::pair<MorphemeSet, MorphemeSet>& args,
-    std::function<void(const Result&)> reportCallback) {
+    std::function<void(const Result&)> reportCallback, const CallSite& site) {
   // We have already verified that the morpheme sets are not empty, but we
   // also need to verify that the number of morphemes is the same between each
   // parameter and argument. FIXME: Roger thinks that we may relax the
@@ -107,7 +107,23 @@ bool Checker::checkForCoverBasedSwap(
       Opts.SwappedMorphemeMatchMin)
     return false;
 
-  // TODO: handle numeric suffixes.
+  // If we got here but there are numeric suffixes on the arguments or the
+  // parameters, filter those out to reduce false positives.
+  auto suffixCheck = [](const std::string& one, const std::string& two) {
+    assert(!one.empty() && !one.empty() &&
+           "Should not have empty names by this point");
+    char suf1 = *(one.end() - 1), suf2 = *(one.end() - 1);
+    return std::isdigit(suf1) && std::isdigit(suf2) &&
+           one.substr(0, one.length() - 1) == two.substr(0, two.length() - 1);
+  };
+  std::string param1 = *getParamName(site, params.first.Position - 1),
+              param2 = *getParamName(site, params.second.Position - 1);
+  if (suffixCheck(param1, param2))
+    return false;
+  std::string arg1 = *getLastArgName(site, args.first.Position - 1),
+              arg2 = *getLastArgName(site, args.second.Position - 1);
+  if (suffixCheck(arg1, arg2))
+    return false;
 
   float psi_i = mm_ai_pj / (mm_aj_pj + 0.01f),
         psi_j = mm_aj_pi / (mm_ai_pi + 0.01f);
@@ -191,10 +207,13 @@ void Checker::CheckSite(const CallSite& site,
     // void foo(int i, int, int, int j); foo(1, 2, 3, 4);
     // as an example of when an argument may not have a corresponding named
     // parameter.
-    if (decl.paramNames && pairwiseArgs.first < decl.paramNames->size() &&
-        pairwiseArgs.second < decl.paramNames->size() &&
-        !decl.paramNames->at(pairwiseArgs.first).empty() &&
-        !decl.paramNames->at(pairwiseArgs.second).empty()) {
+    std::string param1, param2;
+    if (std::optional<std::string> n = getParamName(site, pairwiseArgs.first))
+      param1 = *n;
+    if (std::optional<std::string> n = getParamName(site, pairwiseArgs.second))
+      param2 = *n;
+
+    if (!param1.empty() && !param2.empty()) {
       // Having verified we might be able to run the cover-based checker, now
       // split the parameter identifiers into individual morphemes and verify
       // that we have at least one usable morpheme for each parameter.
@@ -204,11 +223,9 @@ void Checker::CheckSite(const CallSite& site,
       // function. If it does have state, this may also be more natural as a
       // data member rather than a local.
       IdentifierSplitter splitter;
-      const std::vector<std::string>& params = *decl.paramNames;
-      MorphemeSet param1Morphemes{splitter.split(params[pairwiseArgs.first]),
+      MorphemeSet param1Morphemes{splitter.split(param1),
                                   pairwiseArgs.first + 1},
-          param2Morphemes{splitter.split(params[pairwiseArgs.second]),
-                          pairwiseArgs.second + 1};
+          param2Morphemes{splitter.split(param2), pairwiseArgs.second + 1};
 
       // Having split the parameter identifiers into morphemes, remove any
       // morphemes that are low quality and bail out if there are no usable
@@ -248,7 +265,8 @@ void Checker::CheckSite(const CallSite& site,
       // does not find any issues.
       if (!checkForCoverBasedSwap(
               std::make_pair(param1Morphemes, param2Morphemes),
-              std::make_pair(arg1Morphemes, arg2Morphemes), reportCallback)) {
+              std::make_pair(arg1Morphemes, arg2Morphemes), reportCallback,
+              site)) {
         std::cout << "running the stats checker (someday)\n";
       }
     }
