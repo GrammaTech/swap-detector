@@ -83,7 +83,7 @@ bool Checker::checkForCoverBasedSwap(
       uniqueMorphsArg1.empty() || uniqueMorphsArg2.empty())
     return false;
 
-  // If the morphemes seem good in their current locations, bail out.
+  // If the morphemes seem at all good in their current locations, bail out.
   float mm_ai_pi;
   if ((mm_ai_pi = morphemesMatch(uniqueMorphsArg1, uniqueMorphsParam1,
                                  Bias::Optimistic)) >
@@ -95,7 +95,7 @@ bool Checker::checkForCoverBasedSwap(
       Opts.ExistingMorphemeMatchMax)
     return false;
 
-  // If the morphemes seem bad when you swap them, bail out.
+  // If the morphemes seem at all bad when you swap them, bail out.
   float mm_ai_pj;
   if ((mm_ai_pj = morphemesMatch(uniqueMorphsArg1, uniqueMorphsParam2,
                                  Bias::Pessimistic)) <
