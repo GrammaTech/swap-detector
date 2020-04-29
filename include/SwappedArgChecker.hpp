@@ -105,10 +105,17 @@ public:
 struct SWAPPED_ARG_EXPORT CheckerConfiguration {
   // Filesystem-native path to the model database.
   std::string ModelPath;
+  // Bias values used when calculating whether two morphemes match either
+  // pessimistically or optimistically. These values are used to represent
+  // the most pessimistic or the most optimistic match.
   float PessimisticMorphemeMatchBias = 1.1f;
   float OptimisticMorphemeMatchBias = -0.1f;
+  // Comparison values used after calculating the match liklihood for either
+  // pessimistic or optimistic matching, respectively.
   float ExistingMorphemeMatchMax = 0.5f;
   float SwappedMorphemeMatchMin = 0.75f;
+  // Empirical derating factor used to pessimize the score when the statistical
+  // checker is not run.
   float UnvettedCoverScoreDeratingFactor = 0.8f;
 };
 
@@ -148,7 +155,7 @@ class SWAPPED_ARG_EXPORT Checker {
                               const CallSite& callSite);
 
   float anyAreSynonyms(const std::string& morpheme,
-                       const std::set<std::string>& potentialSynonyms);
+                       const std::set<std::string>& potentialSynonyms) const;
 
   // Helper struct for comparing against the bias when matching morphemes.
   enum class Bias { Pessimistic, Optimistic };
@@ -176,7 +183,7 @@ class SWAPPED_ARG_EXPORT Checker {
                           const std::set<std::string>& rhs) const;
 
   float morphemesMatch(const std::set<std::string>& arg,
-                       const std::set<std::string>& param, Bias bias);
+                       const std::set<std::string>& param, Bias bias) const;
 
 public:
   Checker() = default;

@@ -52,10 +52,11 @@ bool Checker::checkForCoverBasedSwap(
     std::function<void(const Result&)> reportCallback, const CallSite& site) {
   // We have already verified that the morpheme sets are not empty, but we
   // also need to verify that the number of morphemes is the same between each
-  // parameter and argument. FIXME: Roger thinks that we may relax the
-  // requirement that the number of morphemes are the same between params and
-  // args, but isn't 100% certain yet. If that happens, we will have to figure
-  // out what to do with the "extra" morphemes in terms of scoring coverage.
+  // parameter and argument.
+  // FIXME: Roger thinks that we may relax the requirement that the number of
+  // morphemes are the same between params and args, but isn't 100% certain yet.
+  // If that happens, we will have to figure out what to do with the "extra"
+  // morphemes in terms of scoring coverage.
   const std::set<std::string>&param1Morphs = params.first.Morphemes,
         &param2Morphs = params.second.Morphemes;
   const std::set<std::string>&arg1Morphs = args.first.Morphemes,
@@ -143,8 +144,9 @@ bool Checker::checkForCoverBasedSwap(
   return true;
 }
 
-float Checker::anyAreSynonyms(const std::string& morpheme,
-                              const std::set<std::string>& potentialSynonyms) {
+float Checker::anyAreSynonyms(
+    const std::string& morpheme,
+    const std::set<std::string>& potentialSynonyms) const {
   // FIXME: this is a very basic implementation currently.
   for (const std::string& synonym : potentialSynonyms) {
     if (synonym == morpheme) {
@@ -166,7 +168,8 @@ Checker::nonLowEntropyDifference(const std::set<std::string>& lhs,
 }
 
 float Checker::morphemesMatch(const std::set<std::string>& arg,
-                              const std::set<std::string>& param, Bias bias) {
+                              const std::set<std::string>& param,
+                              Bias bias) const {
   BiasComp comp(bias, Opts);
   float extreme = comp.extreme();
   for (const std::string& paramMorph : param) {
@@ -239,10 +242,11 @@ void Checker::CheckSite(const CallSite& site,
       // Do the same thing for arguments, except all argument components are
       // split into the same set. e.g., foo(bar.baz(), 0) may split the first
       // argument into the set [bar, baz]. Verify there is at least one usable
-      // morpheme for each argument. FIXME: Currently, the first argument will
-      // not produce any morphemes because we've not decided to stick with this
-      // approach. If we continue to produce only one identifier per argument,
-      // consider flattening the interface of how we represent arguments.
+      // morpheme for each argument.
+      // FIXME: Currently, the first argument will not produce any morphemes
+      // because we've not decided to stick with this approach. If we continue
+      // to produce only one identifier per argument, consider flattening the
+      // interface of how we represent arguments.
       auto morphemeCollector = [&args, &splitter](MorphemeSet& m, size_t pos) {
         m.Position = pos + 1;
         for (const auto& arg : args[pos]) {

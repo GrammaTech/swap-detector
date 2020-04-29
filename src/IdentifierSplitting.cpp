@@ -6,6 +6,7 @@ using namespace swapped_arg;
 
 static std::string lower(const char* wordStart, const char* wordEnd) {
   std::string str(wordStart, wordEnd);
+  // FIXME: use of tolower() depends on the current C locale.
   std::transform(str.begin(), str.end(), str.begin(),
                  [](unsigned char c) { return std::tolower(c); });
   return str;
