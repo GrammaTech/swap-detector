@@ -128,13 +128,13 @@ bool Checker::checkForCoverBasedSwap(
 
   float psi_i = mm_ai_pj / (mm_aj_pj + 0.01f),
         psi_j = mm_aj_pi / (mm_ai_pi + 0.01f);
-  float worst_psi =
-      std::min(psi_i, psi_j) * Opts.UnvettedCoverScoreDeratingFactor;
+  float worst_psi = std::min(psi_i, psi_j);
 
   Result r;
   r.arg1 = args.first.Position;
   r.arg2 = args.second.Position;
-  r.score = new ParameterNameBasedScoreCard(worst_psi);
+  r.score =
+      new ParameterNameBasedScoreCard(worst_psi, /*WasStatsCheckerRun*/ false);
   // FIXME: this is reporting the argument morphemes as they have been split
   // by the IdentifierSplitter, which automatically converts the morphemes to
   // lowercase. It's not clear whether this is the desired reporting behavior.
@@ -171,14 +171,15 @@ float Checker::morphemesMatch(const std::set<std::string>& arg,
                               const std::set<std::string>& param,
                               Bias bias) const {
   BiasComp comp(bias, Opts);
-  float extreme = comp.extreme();
+  std::optional<float> extreme;
   for (const std::string& paramMorph : param) {
     float val = anyAreSynonyms(paramMorph, arg);
-    if (comp(val, extreme)) {
+    if (!extreme || comp(val, *extreme)) {
       extreme = val;
     }
   }
-  return std::clamp(extreme, 0.0f, 1.0f);
+  assert(extreme && "Expected to find at least one extreme");
+  return *extreme;
 }
 
 // Removes low-quality morphemes from the given set. Returns true if removing

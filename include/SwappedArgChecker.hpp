@@ -67,10 +67,14 @@ public:
 
 class ParameterNameBasedScoreCard : public ScoreCard {
   float Score;
+  bool WasStatsCheckerRun;
+
 public:
-  explicit ParameterNameBasedScoreCard(float score) : Score(score) {}
+  explicit ParameterNameBasedScoreCard(float score, bool statsChecked)
+      : Score(score), WasStatsCheckerRun(statsChecked) {}
   CheckerKind kind() const override { return ParameterNameBased; }
   float score() const override { return Score; }
+  bool wasStatsCheckerRun() const { return WasStatsCheckerRun; }
 };
 
 class UsageStatisticsBasedScoreCard : public ScoreCard {
@@ -105,18 +109,10 @@ public:
 struct SWAPPED_ARG_EXPORT CheckerConfiguration {
   // Filesystem-native path to the model database.
   std::string ModelPath;
-  // Bias values used when calculating whether two morphemes match either
-  // pessimistically or optimistically. These values are used to represent
-  // the most pessimistic or the most optimistic match.
-  float PessimisticMorphemeMatchBias = 1.1f;
-  float OptimisticMorphemeMatchBias = -0.1f;
   // Comparison values used after calculating the match liklihood for either
   // pessimistic or optimistic matching, respectively.
   float ExistingMorphemeMatchMax = 0.5f;
   float SwappedMorphemeMatchMin = 0.75f;
-  // Empirical derating factor used to pessimize the score when the statistical
-  // checker is not run.
-  float UnvettedCoverScoreDeratingFactor = 0.8f;
 };
 
 class SWAPPED_ARG_EXPORT Checker {
@@ -161,21 +157,15 @@ class SWAPPED_ARG_EXPORT Checker {
   enum class Bias { Pessimistic, Optimistic };
   struct BiasComp {
     explicit BiasComp(Bias b, const CheckerConfiguration& Opts)
-        : Less(b == Bias::Pessimistic),
-          Extreme(b == Bias::Pessimistic ? Opts.PessimisticMorphemeMatchBias
-                                         : Opts.OptimisticMorphemeMatchBias) {}
+        : Less(b == Bias::Pessimistic) {}
 
     bool operator()(float lhs, float rhs) const {
       if (Less)
         return lhs < rhs;
       return lhs > rhs;
     }
-
-    float extreme() const { return Extreme; }
-
   private:
     bool Less;
-    float Extreme;
   };
 
   std::set<std::string>
