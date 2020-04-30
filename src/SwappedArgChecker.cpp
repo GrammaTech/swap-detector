@@ -135,9 +135,6 @@ bool Checker::checkForCoverBasedSwap(
   r.arg2 = args.second.Position;
   r.score =
       new ParameterNameBasedScoreCard(worst_psi, /*WasStatsCheckerRun*/ false);
-  // FIXME: this is reporting the argument morphemes as they have been split
-  // by the IdentifierSplitter, which automatically converts the morphemes to
-  // lowercase. It's not clear whether this is the desired reporting behavior.
   r.morphemes1 = uniqueMorphsArg1;
   r.morphemes2 = uniqueMorphsArg2;
   reportCallback(r);
@@ -178,7 +175,7 @@ float Checker::morphemesMatch(const std::set<std::string>& arg,
       extreme = val;
     }
   }
-  assert(extreme && "Expected to find at least one extreme");
+  assert(extreme && "Expected to find an extreme");
   return *extreme;
 }
 
