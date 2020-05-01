@@ -129,12 +129,15 @@ bool Checker::checkForCoverBasedSwap(
   float psi_i = mm_ai_pj / (mm_aj_pj + 0.01f),
         psi_j = mm_aj_pi / (mm_ai_pi + 0.01f);
   float worst_psi = std::min(psi_i, psi_j);
+  // TODO: When adding the stats-based checker, this should become non-const
+  // and be set to true if we attempted to run the stats-based checker.
+  const bool verified_with_stats = false;
 
   Result r;
   r.arg1 = args.first.Position;
   r.arg2 = args.second.Position;
   r.score =
-      new ParameterNameBasedScoreCard(worst_psi, /*WasStatsCheckerRun*/ false);
+      new ParameterNameBasedScoreCard(worst_psi, verified_with_stats);
   r.morphemes1 = uniqueMorphsArg1;
   r.morphemes2 = uniqueMorphsArg2;
   reportCallback(r);
