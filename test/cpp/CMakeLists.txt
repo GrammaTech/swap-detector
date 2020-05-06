@@ -10,7 +10,7 @@ add_compile_options(-DDEBUG)
 set(${PROJECT_NAME}_H)
 
 set(${PROJECT_NAME}_SRC
-    Foo.test.cpp
+    Checker.test.cpp
     IdentifierSplitting.test.cpp
     main.cpp
 )

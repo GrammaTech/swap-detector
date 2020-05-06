@@ -6,6 +6,7 @@
 #include <functional>
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <variant>
 #include <vector>
@@ -66,10 +67,14 @@ public:
 
 class ParameterNameBasedScoreCard : public ScoreCard {
   float Score;
+  bool WasStatsCheckerRun;
+
 public:
-  explicit ParameterNameBasedScoreCard(float score) : Score(score) {}
+  explicit ParameterNameBasedScoreCard(float score, bool statsChecked)
+      : Score(score), WasStatsCheckerRun(statsChecked) {}
   CheckerKind kind() const override { return ParameterNameBased; }
   float score() const override { return Score; }
+  bool wasStatsCheckerRun() const { return WasStatsCheckerRun; }
 };
 
 class UsageStatisticsBasedScoreCard : public ScoreCard {
@@ -91,8 +96,8 @@ public:
   ArgumentIndex arg1;
   ArgumentIndex arg2;
 
-  // The specific morpheme in each argument that was swapped.
-  std::string morpheme1, morpheme2;
+  // The specific morphemes in each argument that were swapped.
+  std::set<std::string> morphemes1, morphemes2;
 
   // NOTE: I'd love to use std::unique_ptr here but there is no SWIG support
   // for that type yet.
@@ -104,10 +109,71 @@ public:
 struct SWAPPED_ARG_EXPORT CheckerConfiguration {
   // Filesystem-native path to the model database.
   std::string ModelPath;
+  // Comparison values used after calculating the match liklihood for either
+  // pessimistic or optimistic matching, respectively.
+  float ExistingMorphemeMatchMax = 0.5f;
+  float SwappedMorphemeMatchMin = 0.75f;
 };
 
 class SWAPPED_ARG_EXPORT Checker {
   CheckerConfiguration Opts;
+
+  // Get the parameter name, if any, at the given zero-based index.
+  std::optional<std::string> getParamName(const CallSite& site,
+                                          size_t pos) const {
+    if (!site.callDecl.paramNames)
+      return std::nullopt;
+    if (pos >= site.callDecl.paramNames->size())
+      return std::nullopt;
+    return (*site.callDecl.paramNames)[pos];
+  }
+
+  struct MorphemeSet {
+    std::set<std::string> Morphemes;
+    size_t Position;
+  };
+
+  // Gets the last identifier in the argument name, if any, at the given
+  // zero-based index.
+  std::optional<std::string> getLastArgName(const CallSite& site,
+                                            size_t pos) const {
+    if (pos >= site.positionalArgNames.size())
+      return std::nullopt;
+    return site.positionalArgNames[pos].back();
+  }
+
+  // TODO: remove this debugging utility when done.
+  void print(const MorphemeSet& m, bool isArg);
+
+  bool checkForCoverBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
+                              const std::pair<MorphemeSet, MorphemeSet>& args,
+                              std::function<void(const Result&)> reportCallback,
+                              const CallSite& callSite);
+
+  float anyAreSynonyms(const std::string& morpheme,
+                       const std::set<std::string>& potentialSynonyms) const;
+
+  // Helper struct for comparing against the bias when matching morphemes.
+  enum class Bias { Pessimistic, Optimistic };
+  struct BiasComp {
+    explicit BiasComp(Bias b, const CheckerConfiguration& Opts)
+        : Less(b == Bias::Pessimistic) {}
+
+    bool operator()(float lhs, float rhs) const {
+      if (Less)
+        return lhs < rhs;
+      return lhs > rhs;
+    }
+  private:
+    bool Less;
+  };
+
+  std::set<std::string>
+  nonLowEntropyDifference(const std::set<std::string>& lhs,
+                          const std::set<std::string>& rhs) const;
+
+  float morphemesMatch(const std::set<std::string>& arg,
+                       const std::set<std::string>& param, Bias bias) const;
 
 public:
   Checker() = default;
