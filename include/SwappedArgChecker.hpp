@@ -86,8 +86,6 @@ public:
   // The specific morphemes in each argument that were swapped.
   std::set<std::string> morphemes1, morphemes2;
 
-  // NOTE: I'd love to use std::unique_ptr here but there is no SWIG support
-  // for that type yet.
   std::unique_ptr<ScoreCard> score;
 
   std::string debugStr() const;

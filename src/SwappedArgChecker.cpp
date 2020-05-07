@@ -266,15 +266,12 @@ std::vector<Result> Checker::CheckSite(const CallSite& site) {
 
       // FIXME: run the statistics-based checker if the cover-based checker
       // does not find any issues.
-      std::optional<Result> coverWarning = checkForCoverBasedSwap(
-          std::make_pair(param1Morphemes, param2Morphemes),
-          std::make_pair(arg1Morphemes, arg2Morphemes), site);
-      if (coverWarning) {
+      if (std::optional<Result> coverWarning = checkForCoverBasedSwap(
+              std::make_pair(param1Morphemes, param2Morphemes),
+              std::make_pair(arg1Morphemes, arg2Morphemes), site)) {
         results.push_back(std::move(*coverWarning));
         continue;
       }
-
-      // std::cout << "running the stats checker (someday)\n";
     }
   }
 
