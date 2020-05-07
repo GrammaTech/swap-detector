@@ -57,35 +57,8 @@ add_subdirectory(src)
 
 option(SWAPPED_ARGS_BUILD_PYTHON "Build python SWIG bindings." OFF)
 
-if(SWAPPED_ARGS_BUILD_PYTHON)
-  message(STATUS "Getting SWIG: ...")
-  # Download and unpack swig at configure time
-  configure_file(${CMAKE_CURRENT_LIST_DIR}/CMakeLists.swig swig-download/CMakeLists.txt)
-  execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
-    RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/swig-download )
-  if(result)
-    message(FATAL_ERROR "CMake step for swig failed: ${result}")
-  endif()
-  execute_process(COMMAND ${CMAKE_COMMAND} --build .
-    RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/swig-download )
-  if(result)
-    message(FATAL_ERROR "Build step for swig failed: ${result}")
-  endif()
-
-  # Tell CMake where to find the swig executable, which then sets up the other
-  # cmake variables needed for include and link libraries.
-  if(WIN32)
-    set(SWIG_EXECUTABLE ${CMAKE_BINARY_DIR}/swig/swig.exe)
-  else()
-    set(SWIG_EXECUTABLE ${CMAKE_BINARY_DIR}/swig/install/bin/swig)
-  endif()
-  message(STATUS "Getting SWIG: ...DONE")
-endif()
-
 if (SWAPPED_ARGS_BUILD_PYTHON)
-  add_subdirectory(swig)
+  message(WARNING "Buiding Python extension has been temporarily removed")
 endif()
 
 option(SWAPPED_ARGS_BUILD_TESTS "Build tests." ON)
