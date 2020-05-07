@@ -3,8 +3,8 @@
 
 #include "Compiler.hpp"
 
-#include <functional>
 #include <map>
+#include <memory>
 #include <optional>
 #include <set>
 #include <string>
@@ -23,7 +23,6 @@ public:
   std::optional<std::vector<std::string>> paramNames;
 
   std::optional<bool> isVariadicFunction;
-  std::optional<bool> isMemberFunction;
 };
 
 // A single call-site to check for swapped argument errors.
@@ -36,14 +35,6 @@ public:
 
   // Name expressions for each positional argument.
   std::vector<ArgumentNames> positionalArgNames;
-
-  // Used for languages that support named arguments. Unused for checking C/C++.
-  std::optional<std::map<std::string, ArgumentNames>> namedArgNames;
-
-  // Used by the checker to do false-positive reduction. The callback
-  // returns N lines relative to the call site location.
-  std::optional<std::function<std::string(size_t, size_t)>> sourceFetchCallback;
-  // TODO: name of function containing the call site
 };
 
 // Basic functionality to represent a score card from a failing check result.
@@ -88,20 +79,16 @@ public:
 // A swapped argument error.
 class Result {
 public:
-  using ArgumentIndex = std::variant<size_t, std::string>;
-
-  ~Result() { delete score; }
-
   // Indices of the swapped arguments. Integer argument indexes are one-based.
-  ArgumentIndex arg1;
-  ArgumentIndex arg2;
+  size_t arg1;
+  size_t arg2;
 
   // The specific morphemes in each argument that were swapped.
   std::set<std::string> morphemes1, morphemes2;
 
   // NOTE: I'd love to use std::unique_ptr here but there is no SWIG support
   // for that type yet.
-  const ScoreCard *score = nullptr;
+  std::unique_ptr<ScoreCard> score;
 
   std::string debugStr() const;
 };
@@ -145,10 +132,10 @@ class SWAPPED_ARG_EXPORT Checker {
   // TODO: remove this debugging utility when done.
   void print(const MorphemeSet& m, bool isArg);
 
-  bool checkForCoverBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
-                              const std::pair<MorphemeSet, MorphemeSet>& args,
-                              std::function<void(const Result&)> reportCallback,
-                              const CallSite& callSite);
+  std::optional<Result>
+  checkForCoverBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
+                         const std::pair<MorphemeSet, MorphemeSet>& args,
+                         const CallSite& callSite);
 
   float anyAreSynonyms(const std::string& morpheme,
                        const std::set<std::string>& potentialSynonyms) const;
@@ -181,10 +168,8 @@ public:
 
   // Checks for all argument swap errors at a given call site.
   // @param site Details about the call site.
-  // @param report_callback The callback to call for each swapped argument
-  //                        problem.
-  void CheckSite(const CallSite& site,
-                 std::function<void(const Result&)> reportCallback);
+  // @return All of the dected swaps at the site.
+  std::vector<Result> CheckSite(const CallSite& site);
 
   const CheckerConfiguration& Options() const { return Opts; }
   void setOptions(const CheckerConfiguration& opts) {

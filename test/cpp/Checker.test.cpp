@@ -12,17 +12,12 @@ TEST(Swapping, Basics) {
   Site.callDecl.paramNames = {"cats", "dogs"};
   Site.positionalArgNames = {{"dogs"}, {"cats"}};
 
-  Result ActualResult;
-  C.CheckSite(Site, [&ActualResult](const Result& R) {
-    ActualResult = R;
-    EXPECT_NE(R.score, nullptr);
-    ActualResult.score = nullptr; // Avoid double delete
-  });
-
-  EXPECT_EQ(std::get<size_t>(ActualResult.arg1), 1);
-  EXPECT_EQ(std::get<size_t>(ActualResult.arg2), 2);
-  EXPECT_THAT(ActualResult.morphemes1, testing::UnorderedElementsAre("dogs"));
-  EXPECT_THAT(ActualResult.morphemes2, testing::UnorderedElementsAre("cats"));
+  std::vector<Result> Results = C.CheckSite(Site);
+  EXPECT_EQ(Results.size(), 1);
+  EXPECT_EQ(Results[0].arg1, 1);
+  EXPECT_EQ(Results[0].arg2, 2);
+  EXPECT_THAT(Results[0].morphemes1, testing::UnorderedElementsAre("dogs"));
+  EXPECT_THAT(Results[0].morphemes2, testing::UnorderedElementsAre("cats"));
 }
 
 TEST(Swapping, DifferentMorphemeCases) {
@@ -34,17 +29,12 @@ TEST(Swapping, DifferentMorphemeCases) {
   Site.callDecl.paramNames = {"Dogs", "Cats"};
   Site.positionalArgNames = {{"cats"}, {"dogs"}};
 
-  Result ActualResult;
-  C.CheckSite(Site, [&ActualResult](const Result& R) {
-    ActualResult = R;
-    EXPECT_NE(R.score, nullptr);
-    ActualResult.score = nullptr; // Avoid double delete
-  });
-
-  EXPECT_EQ(std::get<size_t>(ActualResult.arg1), 1);
-  EXPECT_EQ(std::get<size_t>(ActualResult.arg2), 2);
-  EXPECT_THAT(ActualResult.morphemes1, testing::UnorderedElementsAre("cats"));
-  EXPECT_THAT(ActualResult.morphemes2, testing::UnorderedElementsAre("dogs"));
+  std::vector<Result> Results = C.CheckSite(Site);
+  EXPECT_EQ(Results.size(), 1);
+  EXPECT_EQ(Results[0].arg1, 1);
+  EXPECT_EQ(Results[0].arg2, 2);
+  EXPECT_THAT(Results[0].morphemes1, testing::UnorderedElementsAre("cats"));
+  EXPECT_THAT(Results[0].morphemes2, testing::UnorderedElementsAre("dogs"));
 }
 
 TEST(Swapping, DifferentMorphemeCounts) {
@@ -58,9 +48,8 @@ TEST(Swapping, DifferentMorphemeCounts) {
   Site.callDecl.paramNames = {"barking_dogs", "hissing_cats"};
   Site.positionalArgNames = {{"cats"}, {"dogs"}};
 
-  unsigned NumResults = 0;
-  C.CheckSite(Site, [&NumResults](const Result& R) { ++NumResults; });
-  EXPECT_EQ(NumResults, 0);
+  std::vector<Result> Results = C.CheckSite(Site);
+  EXPECT_EQ(Results.size(), 0);
 }
 
 TEST(Swapping, ShouldNotMatch) {
@@ -72,9 +61,8 @@ TEST(Swapping, ShouldNotMatch) {
   Site1.callDecl.paramNames = {"horses", "emus"};
   Site1.positionalArgNames = {{"horses"}, {"emus"}};
 
-  unsigned NumResults = 0;
-  C.CheckSite(Site1, [&NumResults](const Result& R) { ++NumResults; });
-  EXPECT_EQ(NumResults, 0);
+  std::vector<Result> Results = C.CheckSite(Site1);
+  EXPECT_EQ(Results.size(), 0);
 
   // Test that we don't warn when argument and parameter names don't relate.
   CallSite Site2;
@@ -82,9 +70,8 @@ TEST(Swapping, ShouldNotMatch) {
   Site2.callDecl.paramNames = {"horses", "emus"};
   Site2.positionalArgNames = {{"ponies"}, {"ostriches"}};
 
-  NumResults = 0;
-  C.CheckSite(Site2, [&NumResults](const Result& R) { ++NumResults; });
-  EXPECT_EQ(NumResults, 0);
+  Results = C.CheckSite(Site2);
+  EXPECT_EQ(Results.size(), 0);
 
   // Test that we don't warn when the argument morphemes do not fully cover
   // the parameter morphemes.
@@ -93,9 +80,8 @@ TEST(Swapping, ShouldNotMatch) {
   Site3.callDecl.paramNames = {"barking_dogs", "hissing_cats"};
   Site3.positionalArgNames = {{"silly_cats"}, {"dogs_lolling"}};
 
-  NumResults = 0;
-  C.CheckSite(Site3, [&NumResults](const Result& R) { ++NumResults; });
-  EXPECT_EQ(NumResults, 0);
+  Results = C.CheckSite(Site3);
+  EXPECT_EQ(Results.size(), 0);
 
   // Morphemes are not fully covered and it's a rotation rather than a swap.
   CallSite Site4;
@@ -107,9 +93,8 @@ TEST(Swapping, ShouldNotMatch) {
                               {"purring_cats"},
                               {"alligators_eating"}};
 
-  NumResults = 0;
-  C.CheckSite(Site4, [&NumResults](const Result& R) { ++NumResults; });
-  EXPECT_EQ(NumResults, 0);
+  Results = C.CheckSite(Site4);
+  EXPECT_EQ(Results.size(), 0);
 }
 
 TEST(Swapping, MultipleMorphemes) {
@@ -120,18 +105,13 @@ TEST(Swapping, MultipleMorphemes) {
   Site.callDecl.paramNames = {"lolling_dogs", "cats_silly"};
   Site.positionalArgNames = {{"silly_cats"}, {"dogs_lolling"}};
 
-  Result ActualResult;
-  C.CheckSite(Site, [&ActualResult](const Result& R) {
-    ActualResult = R;
-    EXPECT_NE(R.score, nullptr);
-    ActualResult.score = nullptr; // Avoid double delete
-  });
-
-  EXPECT_EQ(std::get<size_t>(ActualResult.arg1), 1);
-  EXPECT_EQ(std::get<size_t>(ActualResult.arg2), 2);
-  EXPECT_THAT(ActualResult.morphemes1,
+  std::vector<Result> Results = C.CheckSite(Site);
+  EXPECT_EQ(Results.size(), 1);
+  EXPECT_EQ(Results[0].arg1, 1);
+  EXPECT_EQ(Results[0].arg2, 2);
+  EXPECT_THAT(Results[0].morphemes1,
               testing::UnorderedElementsAre("cats", "silly"));
-  EXPECT_THAT(ActualResult.morphemes2,
+  EXPECT_THAT(Results[0].morphemes2,
               testing::UnorderedElementsAre("dogs", "lolling"));
 }
 
@@ -145,9 +125,8 @@ TEST(Swapping, NumericSuffixes) {
   Site1.callDecl.paramNames = {"horses1", "horses2"};
   Site1.positionalArgNames = {{"horses2"}, {"horses1"}};
 
-  unsigned NumResults = 0;
-  C.CheckSite(Site1, [&NumResults](const Result& R) { ++NumResults; });
-  EXPECT_EQ(NumResults, 0);
+  std::vector<Result> Results = C.CheckSite(Site1);
+  EXPECT_EQ(Results.size(), 0);
 
   // Similarly, test that we don't match when the arg suffixes are the same,
   // even if there would be a swap otherwise.
@@ -156,9 +135,8 @@ TEST(Swapping, NumericSuffixes) {
   Site2.callDecl.paramNames = {"horses", "horses"}; // Fake data is fake.
   Site2.positionalArgNames = {{"horses1", "horses2"}};
 
-  NumResults = 0;
-  C.CheckSite(Site2, [&NumResults](const Result& R) { ++NumResults; });
-  EXPECT_EQ(NumResults, 0);
+  Results = C.CheckSite(Site2);
+  EXPECT_EQ(Results.size(), 0);
 
   // However, we should still catch swaps like this one.
   // FIXME: this test case fails because we do not handle abbreviations when
@@ -169,18 +147,15 @@ TEST(Swapping, NumericSuffixes) {
   Site3.callDecl.paramNames = {"horses", "goats"};
   Site3.positionalArgNames = {{"goats1"}, {"horses2"}};
 
-  Result ActualResult;
-  C.CheckSite(Site3, [&ActualResult](const Result& R) {
-    ActualResult = R;
-    EXPECT_NE(R.score, nullptr);
-    ActualResult.score = nullptr; // Avoid double delete
-  });
+  Results = C.CheckSite(Site3);
   /*
-    EXPECT_EQ(std::get<size_t>(ActualResult.arg1), 1);
-    EXPECT_EQ(std::get<size_t>(ActualResult.arg2), 2);
-    EXPECT_THAT(ActualResult.morphemes1,
+    EXPECT_EQ(Results.size(), 1);
+    EXPECT_NE(Results[0].score, nullptr);
+    EXPECT_EQ(Results[0].arg1, 1);
+    EXPECT_EQ(Results[0].arg2, 2);
+    EXPECT_THAT(Results[0].morphemes1,
     testing::UnorderedElementsAre("goats1"));
-    EXPECT_THAT(ActualResult.morphemes2,
+    EXPECT_THAT(Results[0].morphemes2,
     testing::UnorderedElementsAre("horses2"));
   */
 }

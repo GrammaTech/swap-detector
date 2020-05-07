@@ -56,20 +56,18 @@ static bool runCheck(const std::string& functionName,
   site.callDecl = callDecl;
   site.positionalArgNames = explodeCallSiteArguments(args);
 
-  bool failed = false;
   Checker check;
-  check.CheckSite(site, [&](const Result& res) {
-    failed = true;
+  std::vector<Result> results = check.CheckSite(site);
+  for (auto& res : results) {
     std::cerr << "ERROR (" << callSiteFile << ":" << callSiteLineNum
               << "): " << site.callDecl.fullyQualifiedName
-              << " has swapped arguments " << std::get<size_t>(res.arg1)
-              << " and " << std::get<size_t>(res.arg2) << " with a score of "
-              << res.score->score() << std::endl;
+              << " has swapped arguments " << res.arg1 << " and " << res.arg2
+              << " with a score of " << res.score->score() << std::endl;
     std::cerr << "NOTE (" << callDeclFile.value_or("<unknown>") << ":"
               << callDeclLineNum.value_or(std::numeric_limits<size_t>::max())
               << "): callee declared here" << std::endl;
-  });
-  return !failed;
+  }
+  return results.empty();
 }
 
 static void printUsage() {

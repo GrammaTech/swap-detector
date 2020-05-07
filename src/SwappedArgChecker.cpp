@@ -46,10 +46,9 @@ void Checker::print(const MorphemeSet& m, bool isArg) {
 }
 
 // Returns true if the checker reported any issues; false otherwise.
-bool Checker::checkForCoverBasedSwap(
+std::optional<Result> Checker::checkForCoverBasedSwap(
     const std::pair<MorphemeSet, MorphemeSet>& params,
-    const std::pair<MorphemeSet, MorphemeSet>& args,
-    std::function<void(const Result&)> reportCallback, const CallSite& site) {
+    const std::pair<MorphemeSet, MorphemeSet>& args, const CallSite& site) {
   // We have already verified that the morpheme sets are not empty, but we
   // also need to verify that the number of morphemes is the same between each
   // parameter and argument.
@@ -67,7 +66,7 @@ bool Checker::checkForCoverBasedSwap(
   if (param1Morphs.size() != param2Morphs.size() ||
       arg1Morphs.size() != arg2Morphs.size() ||
       param1Morphs.size() != arg1Morphs.size())
-    return false;
+    return std::nullopt;
 
   // Remove any low entropy or duplicate param morphemes.
   std::set<std::string> uniqueMorphsParam1 =
@@ -82,31 +81,31 @@ bool Checker::checkForCoverBasedSwap(
   // If there are not enough morphemes left after uniquing, then bail out.
   if (uniqueMorphsParam1.empty() || uniqueMorphsParam2.empty() ||
       uniqueMorphsArg1.empty() || uniqueMorphsArg2.empty())
-    return false;
+    return std::nullopt;
 
   // If the morphemes seem at all good in their current locations, bail out.
   float mm_ai_pi;
   if ((mm_ai_pi = morphemesMatch(uniqueMorphsArg1, uniqueMorphsParam1,
                                  Bias::Optimistic)) >
       Opts.ExistingMorphemeMatchMax)
-    return false;
+    return std::nullopt;
   float mm_aj_pj;
   if ((mm_aj_pj = morphemesMatch(uniqueMorphsArg2, uniqueMorphsParam2,
                                  Bias::Optimistic)) >
       Opts.ExistingMorphemeMatchMax)
-    return false;
+    return std::nullopt;
 
   // If the morphemes seem at all bad when you swap them, bail out.
   float mm_ai_pj;
   if ((mm_ai_pj = morphemesMatch(uniqueMorphsArg1, uniqueMorphsParam2,
                                  Bias::Pessimistic)) <
       Opts.SwappedMorphemeMatchMin)
-    return false;
+    return std::nullopt;
   float mm_aj_pi;
   if ((mm_aj_pi = morphemesMatch(uniqueMorphsArg2, uniqueMorphsParam1,
                                  Bias::Pessimistic)) <
       Opts.SwappedMorphemeMatchMin)
-    return false;
+    return std::nullopt;
 
   // If we got here but there are numeric suffixes on the arguments or the
   // parameters, filter those out to reduce false positives.
@@ -120,11 +119,11 @@ bool Checker::checkForCoverBasedSwap(
   std::string param1 = *getParamName(site, params.first.Position - 1),
               param2 = *getParamName(site, params.second.Position - 1);
   if (suffixCheck(param1, param2))
-    return false;
+    return std::nullopt;
   std::string arg1 = *getLastArgName(site, args.first.Position - 1),
               arg2 = *getLastArgName(site, args.second.Position - 1);
   if (suffixCheck(arg1, arg2))
-    return false;
+    return std::nullopt;
 
   float psi_i = mm_ai_pj / (mm_aj_pj + 0.01f),
         psi_j = mm_aj_pi / (mm_ai_pi + 0.01f);
@@ -136,12 +135,11 @@ bool Checker::checkForCoverBasedSwap(
   Result r;
   r.arg1 = args.first.Position;
   r.arg2 = args.second.Position;
-  r.score =
-      new ParameterNameBasedScoreCard(worst_psi, verified_with_stats);
+  r.score = std::make_unique<ParameterNameBasedScoreCard>(worst_psi,
+                                                          verified_with_stats);
   r.morphemes1 = uniqueMorphsArg1;
   r.morphemes2 = uniqueMorphsArg2;
-  reportCallback(r);
-  return true;
+  return r;
 }
 
 float Checker::anyAreSynonyms(
@@ -189,16 +187,16 @@ static bool removeLowQualityMorphemes(std::set<std::string>& morphemes) {
   return morphemes.empty();
 }
 
-void Checker::CheckSite(const CallSite& site,
-                        std::function<void(const Result&)> reportCallback) {
+std::vector<Result> Checker::CheckSite(const CallSite& site) {
   // If there aren't at least two arguments to the call, there's no swapping
   // possible, so bail out early.
   const std::vector<CallSite::ArgumentNames>& args = site.positionalArgNames;
   if (args.size() < 2)
-    return;
+    return {};
 
   // Walk through each combination of argument pairs from the call site.
   const CallDeclDescriptor& decl = site.callDecl;
+  std::vector<Result> results;
   std::vector<std::pair<size_t, size_t>> argPairs =
       pairwise_combinations(args.size());
   for (const auto& pairwiseArgs : argPairs) {
@@ -268,12 +266,17 @@ void Checker::CheckSite(const CallSite& site,
 
       // FIXME: run the statistics-based checker if the cover-based checker
       // does not find any issues.
-      if (!checkForCoverBasedSwap(
-              std::make_pair(param1Morphemes, param2Morphemes),
-              std::make_pair(arg1Morphemes, arg2Morphemes), reportCallback,
-              site)) {
-        std::cout << "running the stats checker (someday)\n";
+      std::optional<Result> coverWarning = checkForCoverBasedSwap(
+          std::make_pair(param1Morphemes, param2Morphemes),
+          std::make_pair(arg1Morphemes, arg2Morphemes), site);
+      if (coverWarning) {
+        results.push_back(std::move(*coverWarning));
+        continue;
       }
+
+      // std::cout << "running the stats checker (someday)\n";
     }
   }
+
+  return results;
 }
