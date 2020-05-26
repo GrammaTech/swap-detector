@@ -139,7 +139,15 @@ std::optional<Result> Checker::checkForCoverBasedSwap(
                                                           verified_with_stats);
   r.morphemes1 = uniqueMorphsArg1;
   r.morphemes2 = uniqueMorphsArg2;
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ == 7
+  // Hack around a GCC 7.x bug where the presence of a move-only data member
+  // causes the std::optional constructor to be removed from consideration.
+  // This is the only version of GCC we have to worry about (we don't support
+  // older versions and the bug was fixed in newer versions).
+  return std::move(r);
+#else
   return r;
+#endif
 }
 
 float Checker::anyAreSynonyms(
