@@ -3,7 +3,7 @@
 Module that checks for swapped arguments in function calls.
 
 ## Prerequisites
-* CMake 3.14
+* CMake 3.10
 * GCC 7 or Visual Studio 2017
 
 ## Getting Started
