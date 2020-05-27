@@ -1,11 +1,7 @@
-# Need 3.14 to support UseSWIG
-cmake_minimum_required(VERSION 3.14.0)
+cmake_minimum_required(VERSION 3.10.0)
 
 # Enable project versions.
 cmake_policy(SET CMP0048 NEW)
-
-# Use the SWIG_MODULE_NAME property.
-cmake_policy(SET CMP0086 NEW)
 
 project(
   SwappedArgChecker
