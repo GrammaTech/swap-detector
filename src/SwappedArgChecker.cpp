@@ -265,7 +265,23 @@ std::optional<Result> Checker::checkForStatisticsBasedSwap(
             fit2 = fit(argMorph2, callSite, args.first.Position);
       if (fit1 > Opts.StatsSwappedFitnessThreshold &&
           fit2 > Opts.StatsSwappedFitnessThreshold) {
-        // TODO: return the statistical swap result.
+        // Return the statistical swap result.
+        Result r;
+        r.arg1 = args.first.Position;
+        r.arg2 = args.second.Position;
+        r.score = std::make_unique<UsageStatisticsBasedScoreCard>(fit1, fit2);
+        r.morphemes1 = uniqArgMorphs1.Morphemes;
+        r.morphemes2 = uniqArgMorphs2.Morphemes;
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ == 7
+        // Hack around a GCC 7.x bug where the presence of a move-only data
+        // member causes the std::optional constructor to be removed from
+        // consideration. This is the only version of GCC we have to worry about
+        // (we don't support older versions and the bug was fixed in newer
+        // versions).
+        return std::move(r);
+#else
+        return r;
+#endif
       }
     }
   }
