@@ -98,6 +98,12 @@ struct SWAPPED_ARG_EXPORT CheckerConfiguration {
   // pessimistic or optimistic matching, respectively.
   float ExistingMorphemeMatchMax = 0.5f;
   float SwappedMorphemeMatchMin = 0.75f;
+  // Comparison value used to determine whether an argument morpheme is
+  // statistically likely to be a swap.
+  float StatsSwappedMorphemeThreshold = 0.75f; // FIXME: made up number!!
+  // Comparison value used to determine whether a potential swap is
+  // sufficiently fit or not.
+  float StatsSwappedFitnessThreshold = 0.75f; // FIXME: made up number!!
 };
 
 class SWAPPED_ARG_EXPORT Checker {
@@ -117,6 +123,9 @@ class SWAPPED_ARG_EXPORT Checker {
     std::set<std::string> Morphemes;
     size_t Position;
   };
+
+  MorphemeSet morphemeSetDifference(const MorphemeSet& one,
+                                    const MorphemeSet& two) const;
 
   // Gets the last identifier in the argument name, if any, at the given
   // zero-based index.
@@ -159,6 +168,31 @@ class SWAPPED_ARG_EXPORT Checker {
 
   float morphemesMatch(const std::set<std::string>& arg,
                        const std::set<std::string>& param, Bias bias) const;
+
+  std::optional<Result>
+  checkForStatisticsBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
+                              const std::pair<MorphemeSet, MorphemeSet>& args,
+                              const CallSite& callSite);
+  // Determines the confidence of how much more common it is to see the given
+  // morpheme at the given position compared to another position. Returns values
+  // in the range 0.0f (for no confidence) to infinity (for highest confidence).
+  float morphemeConfidenceAtPosition(const std::string& morph, size_t pos,
+                                     size_t comparedToPos) const;
+
+  // Determines how "similar" two morphemes are, including abbreviations and
+  // synonyms. Returns a value between [0, 1).
+  float similarity(const std::string& morph1, const std::string& morph2) const;
+
+  // Determine the relative frequency of the given morpheme compared to any
+  // other morpheme in given position. Returns a value between [0, 1) such that
+  // the sum of weights for all morphemes that occur in that position is 1.
+  float weight(const std::string& morph, size_t pos) const;
+
+  // Determines the fitness of a potential swap of the given morpheme when
+  // compared to the other morphemes used at that position in other function
+  // calls. Returns a value between [0, 1).
+  float fit(const std::string& morph, const CallSite& site,
+            size_t argPos) const;
 
 public:
   Checker() = default;

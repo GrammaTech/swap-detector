@@ -188,6 +188,90 @@ float Checker::morphemesMatch(const std::set<std::string>& arg,
   return *extreme;
 }
 
+Checker::MorphemeSet
+Checker::morphemeSetDifference(const MorphemeSet& one,
+                               const MorphemeSet& two) const {
+  MorphemeSet ret;
+  // We are removing the duplicates from the first set to report the difference,
+  // so the position followed the first set.
+  ret.Position = one.Position;
+  std::set_difference(one.Morphemes.begin(), one.Morphemes.end(),
+                      two.Morphemes.begin(), two.Morphemes.end(),
+                      std::inserter(ret.Morphemes, ret.Morphemes.begin()));
+  return ret;
+}
+
+float Checker::morphemeConfidenceAtPosition(const std::string& morph,
+                                            size_t pos,
+                                            size_t comparedToPos) const {
+  // TODO: implement this
+  return 0.0f;
+}
+
+float Checker::similarity(const std::string& morph1,
+                          const std::string& morph2) const {
+  // TODO: implement this
+  return morph1 == morph2 ? 1.0f : 0.0f;
+}
+
+float Checker::weight(const std::string& morph, size_t pos) const {
+  // TODO: implement this
+  return 1.0f;
+}
+
+float Checker::fit(const std::string& morph, const CallSite& site,
+                   size_t argPos) const {
+  // TODO: implement this
+  return 0.0f;
+}
+
+std::optional<Result> Checker::checkForStatisticsBasedSwap(
+    const std::pair<MorphemeSet, MorphemeSet>& params,
+    const std::pair<MorphemeSet, MorphemeSet>& args, const CallSite& callSite) {
+  MorphemeSet uniqArgMorphs1 = morphemeSetDifference(args.first, args.second),
+              uniqArgMorphs2 = morphemeSetDifference(args.second, args.first);
+
+  for (const std::string& argMorph1 : uniqArgMorphs1.Morphemes) {
+    for (const std::string& argMorph2 : uniqArgMorphs2.Morphemes) {
+      // Check to see how much more common the first morpheme is at position 2
+      // than position 1, and how much more common the second morpheme is at
+      // position 1 than position 2. If they seem to not be commonly swapped,
+      // move on.
+      float psi1 = morphemeConfidenceAtPosition(
+                argMorph1, uniqArgMorphs2.Position, uniqArgMorphs1.Position),
+            psi2 = morphemeConfidenceAtPosition(
+                argMorph2, uniqArgMorphs1.Position, uniqArgMorphs2.Position);
+      if (psi1 <= Opts.StatsSwappedMorphemeThreshold ||
+          psi2 <= Opts.StatsSwappedMorphemeThreshold) {
+        continue;
+      }
+
+      // Only consider the case where the remainder of the morphemes are the
+      // same between both arguments.
+      std::set<std::string> one, two;
+      std::remove_copy(uniqArgMorphs1.Morphemes.begin(),
+                       uniqArgMorphs1.Morphemes.end(),
+                       std::inserter(one, one.begin()), argMorph1);
+      std::remove_copy(uniqArgMorphs2.Morphemes.begin(),
+                       uniqArgMorphs2.Morphemes.end(),
+                       std::inserter(two, two.begin()), argMorph2);
+      if (!std::equal(one.begin(), one.end(), two.begin(), two.end())) {
+        continue;
+      }
+
+      // Determine the fitness of the first arg morpheme compared to the second
+      // and vice versa to see if it exceeds a threshold.
+      float fit1 = fit(argMorph1, callSite, args.second.Position),
+            fit2 = fit(argMorph2, callSite, args.first.Position);
+      if (fit1 > Opts.StatsSwappedFitnessThreshold &&
+          fit2 > Opts.StatsSwappedFitnessThreshold) {
+        // TODO: return the statistical swap result.
+      }
+    }
+  }
+  return std::nullopt;
+}
+
 // Removes low-quality morphemes from the given set. Returns true if removing
 // the morphemes leaves the set empty, false otherwise.
 static bool removeLowQualityMorphemes(std::set<std::string>& morphemes) {
@@ -279,6 +363,12 @@ std::vector<Result> Checker::CheckSite(const CallSite& site) {
               std::make_pair(arg1Morphemes, arg2Morphemes), site)) {
         results.push_back(std::move(*coverWarning));
         continue;
+      }
+
+      if (std::optional<Result> statsWarning = checkForStatisticsBasedSwap(
+              std::make_pair(param1Morphemes, param2Morphemes),
+              std::make_pair(arg1Morphemes, arg2Morphemes), site)) {
+        results.push_back(std::move(*statsWarning));
       }
     }
   }
