@@ -226,8 +226,11 @@ class SWAPPED_ARG_EXPORT Checker {
   // Determines the confidence of how much more common it is to see the given
   // morpheme at the given position compared to another position. Returns values
   // in the range 0.0f (for no confidence) to infinity (for highest confidence).
-  float morphemeConfidenceAtPosition(const std::string& morph, size_t pos,
-                                     size_t comparedToPos) const;
+  // FIXME: remove the paramMorphs parameter when doing the real implementation.
+  float
+  morphemeConfidenceAtPosition(const std::string& morph, size_t pos,
+                               size_t comparedToPos,
+                               const std::set<std::string>& paramMoprphs) const;
 
   // Determines how "similar" two morphemes are, including abbreviations and
   // synonyms. Returns a value between [0, 1).

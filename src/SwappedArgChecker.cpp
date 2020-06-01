@@ -201,10 +201,14 @@ Checker::morphemeSetDifference(const MorphemeSet& one,
   return ret;
 }
 
-float Checker::morphemeConfidenceAtPosition(const std::string& morph,
-                                            size_t pos,
-                                            size_t comparedToPos) const {
-  // TODO: implement this
+float Checker::morphemeConfidenceAtPosition(
+    const std::string& morph, size_t pos, size_t comparedToPos,
+    const std::set<std::string>& paramMorphs) const {
+  // TODO: implement this properly. This is a placeholder implementation that
+  // considers a matching parameter morpheme at that position to be a high
+  // confidence.
+  if (paramMorphs.count(morph) > 0)
+    return 1.0f;
   return 0.0f;
 }
 
@@ -242,9 +246,11 @@ std::optional<Result> Checker::checkForStatisticsBasedSwap(
       // position 1 than position 2. If they seem to not be commonly swapped,
       // move on.
       float psi1 = morphemeConfidenceAtPosition(
-                argMorph1, uniqArgMorphs2.Position, uniqArgMorphs1.Position),
+                argMorph1, uniqArgMorphs2.Position, uniqArgMorphs1.Position,
+                params.second.Morphemes),
             psi2 = morphemeConfidenceAtPosition(
-                argMorph2, uniqArgMorphs1.Position, uniqArgMorphs2.Position);
+                argMorph2, uniqArgMorphs1.Position, uniqArgMorphs2.Position,
+                params.first.Morphemes);
       if (psi1 <= Opts.StatsSwappedMorphemeThreshold ||
           psi2 <= Opts.StatsSwappedMorphemeThreshold) {
         continue;
