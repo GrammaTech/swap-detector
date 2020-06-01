@@ -246,10 +246,17 @@ public:
   Checker() = default;
   explicit Checker(const CheckerConfiguration& opts) : Opts(opts) {}
 
+  enum class Check {
+    CoverBased,
+    StatsBased,
+    All,
+  };
+
   // Checks for all argument swap errors at a given call site.
   // @param site Details about the call site.
   // @return All of the dected swaps at the site.
-  std::vector<Result> CheckSite(const CallSite& site);
+  std::vector<Result> CheckSite(const CallSite& site,
+                                Check whichCheck = Check::All);
 
   const CheckerConfiguration& Options() const { return Opts; }
   void setOptions(const CheckerConfiguration& opts) {

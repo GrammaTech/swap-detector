@@ -12,7 +12,7 @@ TEST(Swapping, Basics) {
   Site.callDecl.paramNames = {"cats", "dogs"};
   Site.positionalArgNames = {{"dogs"}, {"cats"}};
 
-  std::vector<Result> Results = C.CheckSite(Site);
+  std::vector<Result> Results = C.CheckSite(Site, Checker::Check::CoverBased);
   EXPECT_EQ(Results.size(), 1);
   EXPECT_EQ(Results[0].arg1, 1);
   EXPECT_EQ(Results[0].arg2, 2);
@@ -29,7 +29,7 @@ TEST(Swapping, DifferentMorphemeCases) {
   Site.callDecl.paramNames = {"Dogs", "Cats"};
   Site.positionalArgNames = {{"cats"}, {"dogs"}};
 
-  std::vector<Result> Results = C.CheckSite(Site);
+  std::vector<Result> Results = C.CheckSite(Site, Checker::Check::CoverBased);
   EXPECT_EQ(Results.size(), 1);
   EXPECT_EQ(Results[0].arg1, 1);
   EXPECT_EQ(Results[0].arg2, 2);
@@ -48,7 +48,7 @@ TEST(Swapping, DifferentMorphemeCounts) {
   Site.callDecl.paramNames = {"barking_dogs", "hissing_cats"};
   Site.positionalArgNames = {{"cats"}, {"dogs"}};
 
-  std::vector<Result> Results = C.CheckSite(Site);
+  std::vector<Result> Results = C.CheckSite(Site, Checker::Check::CoverBased);
   EXPECT_EQ(Results.size(), 0);
 }
 
@@ -61,7 +61,7 @@ TEST(Swapping, ShouldNotMatch) {
   Site1.callDecl.paramNames = {"horses", "emus"};
   Site1.positionalArgNames = {{"horses"}, {"emus"}};
 
-  std::vector<Result> Results = C.CheckSite(Site1);
+  std::vector<Result> Results = C.CheckSite(Site1, Checker::Check::CoverBased);
   EXPECT_EQ(Results.size(), 0);
 
   // Test that we don't warn when argument and parameter names don't relate.
@@ -70,7 +70,7 @@ TEST(Swapping, ShouldNotMatch) {
   Site2.callDecl.paramNames = {"horses", "emus"};
   Site2.positionalArgNames = {{"ponies"}, {"ostriches"}};
 
-  Results = C.CheckSite(Site2);
+  Results = C.CheckSite(Site2, Checker::Check::CoverBased);
   EXPECT_EQ(Results.size(), 0);
 
   // Test that we don't warn when the argument morphemes do not fully cover
@@ -80,7 +80,7 @@ TEST(Swapping, ShouldNotMatch) {
   Site3.callDecl.paramNames = {"barking_dogs", "hissing_cats"};
   Site3.positionalArgNames = {{"silly_cats"}, {"dogs_lolling"}};
 
-  Results = C.CheckSite(Site3);
+  Results = C.CheckSite(Site3, Checker::Check::CoverBased);
   EXPECT_EQ(Results.size(), 0);
 
   // Morphemes are not fully covered and it's a rotation rather than a swap.
@@ -93,7 +93,7 @@ TEST(Swapping, ShouldNotMatch) {
                               {"purring_cats"},
                               {"alligators_eating"}};
 
-  Results = C.CheckSite(Site4);
+  Results = C.CheckSite(Site4, Checker::Check::CoverBased);
   EXPECT_EQ(Results.size(), 0);
 }
 
@@ -105,7 +105,7 @@ TEST(Swapping, MultipleMorphemes) {
   Site.callDecl.paramNames = {"lolling_dogs", "cats_silly"};
   Site.positionalArgNames = {{"silly_cats"}, {"dogs_lolling"}};
 
-  std::vector<Result> Results = C.CheckSite(Site);
+  std::vector<Result> Results = C.CheckSite(Site, Checker::Check::CoverBased);
   EXPECT_EQ(Results.size(), 1);
   EXPECT_EQ(Results[0].arg1, 1);
   EXPECT_EQ(Results[0].arg2, 2);
@@ -125,7 +125,7 @@ TEST(Swapping, NumericSuffixes) {
   Site1.callDecl.paramNames = {"horses1", "horses2"};
   Site1.positionalArgNames = {{"horses2"}, {"horses1"}};
 
-  std::vector<Result> Results = C.CheckSite(Site1);
+  std::vector<Result> Results = C.CheckSite(Site1, Checker::Check::CoverBased);
   EXPECT_EQ(Results.size(), 0);
 
   // Similarly, test that we don't match when the arg suffixes are the same,
@@ -135,7 +135,7 @@ TEST(Swapping, NumericSuffixes) {
   Site2.callDecl.paramNames = {"horses", "horses"}; // Fake data is fake.
   Site2.positionalArgNames = {{"horses1", "horses2"}};
 
-  Results = C.CheckSite(Site2);
+  Results = C.CheckSite(Site2, Checker::Check::CoverBased);
   EXPECT_EQ(Results.size(), 0);
 
   // However, we should still catch swaps like this one.
@@ -147,7 +147,7 @@ TEST(Swapping, NumericSuffixes) {
   Site3.callDecl.paramNames = {"horses", "goats"};
   Site3.positionalArgNames = {{"goats1"}, {"horses2"}};
 
-  Results = C.CheckSite(Site3);
+  Results = C.CheckSite(Site3, Checker::Check::CoverBased);
   /*
     EXPECT_EQ(Results.size(), 1);
     EXPECT_NE(Results[0].score, nullptr);

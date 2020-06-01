@@ -305,7 +305,7 @@ static bool removeLowQualityMorphemes(std::set<std::string>& morphemes) {
   return morphemes.empty();
 }
 
-std::vector<Result> Checker::CheckSite(const CallSite& site) {
+std::vector<Result> Checker::CheckSite(const CallSite& site, Check whichCheck) {
   // If there aren't at least two arguments to the call, there's no swapping
   // possible, so bail out early.
   const std::vector<CallSite::ArgumentNames>& args = site.positionalArgNames;
@@ -383,31 +383,35 @@ std::vector<Result> Checker::CheckSite(const CallSite& site) {
         continue;
 
       // Run the cover-based checker first.
-      if (std::optional<Result> coverWarning = checkForCoverBasedSwap(
-              std::make_pair(param1Morphemes, param2Morphemes),
-              std::make_pair(arg1Morphemes, arg2Morphemes), site)) {
-        results.push_back(std::move(*coverWarning));
-        continue;
+      if (whichCheck == Check::All || whichCheck == Check::CoverBased) {
+        if (std::optional<Result> coverWarning = checkForCoverBasedSwap(
+                std::make_pair(param1Morphemes, param2Morphemes),
+                std::make_pair(arg1Morphemes, arg2Morphemes), site)) {
+          results.push_back(std::move(*coverWarning));
+          continue;
+        }
       }
 
       // If that didn't find anything, run the statistics-based checker.
       // FIXME: this generates a fake statistics database. It should be
       // replaced with the real database.
-      Statistics stats;
-      auto statsFiller = [&stats, &site](const MorphemeSet& M) {
-        float inc = 1.0f / M.Morphemes.size();
-        for (const std::string& m : M.Morphemes) {
-          stats.setWeightForMorpheme(site.callDecl.fullyQualifiedName,
-                                     M.Position, m, inc);
-        }
-      };
-      statsFiller(param1Morphemes);
-      statsFiller(param2Morphemes);
+      if (whichCheck == Check::All || whichCheck == Check::StatsBased) {
+        Statistics stats;
+        auto statsFiller = [&stats, &site](const MorphemeSet& M) {
+          float inc = 1.0f / M.Morphemes.size();
+          for (const std::string& m : M.Morphemes) {
+            stats.setWeightForMorpheme(site.callDecl.fullyQualifiedName,
+                                       M.Position, m, inc);
+          }
+        };
+        statsFiller(param1Morphemes);
+        statsFiller(param2Morphemes);
 
-      if (std::optional<Result> statsWarning = checkForStatisticsBasedSwap(
-              std::make_pair(param1Morphemes, param2Morphemes),
-              std::make_pair(arg1Morphemes, arg2Morphemes), site, stats)) {
-        results.push_back(std::move(*statsWarning));
+        if (std::optional<Result> statsWarning = checkForStatisticsBasedSwap(
+                std::make_pair(param1Morphemes, param2Morphemes),
+                std::make_pair(arg1Morphemes, arg2Morphemes), site, stats)) {
+          results.push_back(std::move(*statsWarning));
+        }
       }
     }
   }
