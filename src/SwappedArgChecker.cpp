@@ -214,20 +214,24 @@ float Checker::similarity(const std::string& morph1,
   return morph1 == morph2 ? 1.0f : 0.0f;
 }
 
-float Checker::weight(const std::string& morph, size_t pos) const {
-  // TODO: implement this
-  return 1.0f;
-}
-
 float Checker::fit(const std::string& morph, const CallSite& site,
-                   size_t argPos) const {
-  // TODO: implement this
-  return 0.0f;
+                   size_t argPos, const Statistics& stats) const {
+  std::string funcName = site.callDecl.fullyQualifiedName;
+  std::vector<std::string> morphsAtPos;
+  if (!stats.morphemesAtPos(funcName, argPos, morphsAtPos))
+    return 0.0f;
+
+  float ret = 0.0f;
+  for (const std::string& m : morphsAtPos) {
+    ret += similarity(morph, m) * stats.weightForMorpheme(funcName, argPos, m);
+  }
+  return ret;
 }
 
 std::optional<Result> Checker::checkForStatisticsBasedSwap(
     const std::pair<MorphemeSet, MorphemeSet>& params,
-    const std::pair<MorphemeSet, MorphemeSet>& args, const CallSite& callSite) {
+    const std::pair<MorphemeSet, MorphemeSet>& args, const CallSite& callSite,
+    const Statistics& stats) {
   MorphemeSet uniqArgMorphs1 = morphemeSetDifference(args.first, args.second),
               uniqArgMorphs2 = morphemeSetDifference(args.second, args.first);
 
@@ -261,8 +265,8 @@ std::optional<Result> Checker::checkForStatisticsBasedSwap(
 
       // Determine the fitness of the first arg morpheme compared to the second
       // and vice versa to see if it exceeds a threshold.
-      float fit1 = fit(argMorph1, callSite, args.second.Position),
-            fit2 = fit(argMorph2, callSite, args.first.Position);
+      float fit1 = fit(argMorph1, callSite, args.second.Position, stats),
+            fit2 = fit(argMorph2, callSite, args.first.Position, stats);
       if (fit1 > Opts.StatsSwappedFitnessThreshold &&
           fit2 > Opts.StatsSwappedFitnessThreshold) {
         // Return the statistical swap result.
@@ -372,8 +376,7 @@ std::vector<Result> Checker::CheckSite(const CallSite& site) {
           removeLowQualityMorphemes(arg2Morphemes.Morphemes))
         continue;
 
-      // FIXME: run the statistics-based checker if the cover-based checker
-      // does not find any issues.
+      // Run the cover-based checker first.
       if (std::optional<Result> coverWarning = checkForCoverBasedSwap(
               std::make_pair(param1Morphemes, param2Morphemes),
               std::make_pair(arg1Morphemes, arg2Morphemes), site)) {
@@ -381,9 +384,23 @@ std::vector<Result> Checker::CheckSite(const CallSite& site) {
         continue;
       }
 
+      // If that didn't find anything, run the statistics-based checker.
+      // FIXME: this generates a fake statistics database. It should be
+      // replaced with the real database.
+      Statistics stats;
+      auto statsFiller = [&stats, &site](const MorphemeSet& M) {
+        float inc = 1.0f / M.Morphemes.size();
+        for (const std::string& m : M.Morphemes) {
+          stats.setWeightForMorpheme(site.callDecl.fullyQualifiedName,
+                                     M.Position, m, inc);
+        }
+      };
+      statsFiller(param1Morphemes);
+      statsFiller(param2Morphemes);
+
       if (std::optional<Result> statsWarning = checkForStatisticsBasedSwap(
               std::make_pair(param1Morphemes, param2Morphemes),
-              std::make_pair(arg1Morphemes, arg2Morphemes), site)) {
+              std::make_pair(arg1Morphemes, arg2Morphemes), site, stats)) {
         results.push_back(std::move(*statsWarning));
       }
     }

@@ -110,6 +110,51 @@ struct SWAPPED_ARG_EXPORT CheckerConfiguration {
   float StatsSwappedFitnessThreshold = 0.75f; // FIXME: made up number!!
 };
 
+class Statistics {
+  // FIXME: This maps the function, position, morpheme tuple to a score. It
+  // will be replaced by a real database someday, I hope.
+  std::map<std::string, std::map<size_t, std::map<std::string, float>>> MorphDB;
+
+public:
+  // This function will eventually be deleted, but exists so that we can get
+  // some use out of the interface. It should be replaced by a constructor that
+  // loads the statistics database instead.
+  void setWeightForMorpheme(const std::string& funcName, size_t argPos,
+                            const std::string& morpheme, float value) {
+    MorphDB[funcName][argPos][morpheme] = value;
+  }
+  // Determine the relative frequency of the given morpheme compared to any
+  // other morpheme in given position. Returns a value between [0, 1) such that
+  // the sum of weights for all morphemes that occur in that position is 1.
+  float weightForMorpheme(const std::string& funcName, size_t argPos,
+                          const std::string& morpheme) const {
+    if (auto funcIt = MorphDB.find(funcName); funcIt != MorphDB.end()) {
+      if (auto posIt = funcIt->second.find(argPos);
+          posIt != funcIt->second.end()) {
+        if (auto morphIt = posIt->second.find(morpheme);
+            morphIt != posIt->second.end()) {
+          return morphIt->second;
+        }
+      }
+    }
+    return 0.0f;
+  }
+
+  bool morphemesAtPos(const std::string& funcName, size_t argPos,
+                      std::vector<std::string>& morphemes) const {
+    if (auto funcIt = MorphDB.find(funcName); funcIt != MorphDB.end()) {
+      if (auto posIt = funcIt->second.find(argPos);
+          posIt != funcIt->second.end()) {
+        for (const auto& kvpair : posIt->second) {
+          morphemes.push_back(kvpair.first);
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+};
+
 class SWAPPED_ARG_EXPORT Checker {
   CheckerConfiguration Opts;
 
@@ -176,7 +221,8 @@ class SWAPPED_ARG_EXPORT Checker {
   std::optional<Result>
   checkForStatisticsBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
                               const std::pair<MorphemeSet, MorphemeSet>& args,
-                              const CallSite& callSite);
+                              const CallSite& callSite,
+                              const Statistics& stats);
   // Determines the confidence of how much more common it is to see the given
   // morpheme at the given position compared to another position. Returns values
   // in the range 0.0f (for no confidence) to infinity (for highest confidence).
@@ -187,16 +233,11 @@ class SWAPPED_ARG_EXPORT Checker {
   // synonyms. Returns a value between [0, 1).
   float similarity(const std::string& morph1, const std::string& morph2) const;
 
-  // Determine the relative frequency of the given morpheme compared to any
-  // other morpheme in given position. Returns a value between [0, 1) such that
-  // the sum of weights for all morphemes that occur in that position is 1.
-  float weight(const std::string& morph, size_t pos) const;
-
   // Determines the fitness of a potential swap of the given morpheme when
   // compared to the other morphemes used at that position in other function
   // calls. Returns a value between [0, 1).
-  float fit(const std::string& morph, const CallSite& site,
-            size_t argPos) const;
+  float fit(const std::string& morph, const CallSite& site, size_t argPos,
+            const Statistics& stats) const;
 
 public:
   Checker() = default;
