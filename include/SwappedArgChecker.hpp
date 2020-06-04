@@ -69,11 +69,22 @@ public:
 };
 
 class UsageStatisticsBasedScoreCard : public ScoreCard {
-  float Score;
+  float Fit1, Fit2;
+  float Psi1, Psi2;
+
 public:
-  explicit UsageStatisticsBasedScoreCard(float score) : Score(score) {}
+  explicit UsageStatisticsBasedScoreCard(float fit1, float fit2, float psi1,
+                                         float psi2)
+      : Fit1(fit1), Fit2(fit2), Psi1(psi1), Psi2(psi2) {}
   CheckerKind kind() const override { return UsageStatisticsBased; }
-  float score() const override { return Score; }
+
+  float score() const override { return std::max(Fit1, Fit2); }
+
+  float arg1_fitness() const { return Fit1; }
+  float arg2_fitness() const { return Fit2; }
+
+  float arg1_psi() const { return Psi1; }
+  float arg2_psi() const { return Psi2; }
 };
 
 // A swapped argument error.
@@ -98,6 +109,57 @@ struct SWAPPED_ARG_EXPORT CheckerConfiguration {
   // pessimistic or optimistic matching, respectively.
   float ExistingMorphemeMatchMax = 0.5f;
   float SwappedMorphemeMatchMin = 0.75f;
+  // Comparison value used to determine whether an argument morpheme is
+  // statistically likely to be a swap.
+  float StatsSwappedMorphemeThreshold = 0.75f; // FIXME: made up number!!
+  // Comparison value used to determine whether a potential swap is
+  // sufficiently fit or not.
+  float StatsSwappedFitnessThreshold = 0.75f; // FIXME: made up number!!
+};
+
+class Statistics {
+  // FIXME: This maps the function, position, morpheme tuple to a score. It
+  // will be replaced by a real database someday, I hope.
+  std::map<std::string, std::map<size_t, std::map<std::string, float>>> MorphDB;
+
+public:
+  // This function will eventually be deleted, but exists so that we can get
+  // some use out of the interface. It should be replaced by a constructor that
+  // loads the statistics database instead.
+  void setWeightForMorpheme(const std::string& funcName, size_t argPos,
+                            const std::string& morpheme, float value) {
+    MorphDB[funcName][argPos][morpheme] = value;
+  }
+  // Determine the relative frequency of the given morpheme compared to any
+  // other morpheme in given position. Returns a value between [0, 1) such that
+  // the sum of weights for all morphemes that occur in that position is 1.
+  float weightForMorpheme(const std::string& funcName, size_t argPos,
+                          const std::string& morpheme) const {
+    if (auto funcIt = MorphDB.find(funcName); funcIt != MorphDB.end()) {
+      if (auto posIt = funcIt->second.find(argPos);
+          posIt != funcIt->second.end()) {
+        if (auto morphIt = posIt->second.find(morpheme);
+            morphIt != posIt->second.end()) {
+          return morphIt->second;
+        }
+      }
+    }
+    return 0.0f;
+  }
+
+  bool morphemesAtPos(const std::string& funcName, size_t argPos,
+                      std::vector<std::string>& morphemes) const {
+    if (auto funcIt = MorphDB.find(funcName); funcIt != MorphDB.end()) {
+      if (auto posIt = funcIt->second.find(argPos);
+          posIt != funcIt->second.end()) {
+        for (const auto& kvpair : posIt->second) {
+          morphemes.push_back(kvpair.first);
+        }
+        return true;
+      }
+    }
+    return false;
+  }
 };
 
 class SWAPPED_ARG_EXPORT Checker {
@@ -117,6 +179,9 @@ class SWAPPED_ARG_EXPORT Checker {
     std::set<std::string> Morphemes;
     size_t Position;
   };
+
+  MorphemeSet morphemeSetDifference(const MorphemeSet& one,
+                                    const MorphemeSet& two) const;
 
   // Gets the last identifier in the argument name, if any, at the given
   // zero-based index.
@@ -160,14 +225,45 @@ class SWAPPED_ARG_EXPORT Checker {
   float morphemesMatch(const std::set<std::string>& arg,
                        const std::set<std::string>& param, Bias bias) const;
 
+  std::optional<Result>
+  checkForStatisticsBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
+                              const std::pair<MorphemeSet, MorphemeSet>& args,
+                              const CallSite& callSite,
+                              const Statistics& stats);
+  // Determines the confidence of how much more common it is to see the given
+  // morpheme at the given position compared to another position. Returns values
+  // in the range 0.0f (for no confidence) to infinity (for highest confidence).
+  // FIXME: remove the paramMorphs parameter when doing the real implementation.
+  float
+  morphemeConfidenceAtPosition(const std::string& morph, size_t pos,
+                               size_t comparedToPos,
+                               const std::set<std::string>& paramMoprphs) const;
+
+  // Determines how "similar" two morphemes are, including abbreviations and
+  // synonyms. Returns a value between [0, 1).
+  float similarity(const std::string& morph1, const std::string& morph2) const;
+
+  // Determines the fitness of a potential swap of the given morpheme when
+  // compared to the other morphemes used at that position in other function
+  // calls. Returns a value between [0, 1).
+  float fit(const std::string& morph, const CallSite& site, size_t argPos,
+            const Statistics& stats) const;
+
 public:
   Checker() = default;
   explicit Checker(const CheckerConfiguration& opts) : Opts(opts) {}
 
+  enum class Check {
+    CoverBased,
+    StatsBased,
+    All,
+  };
+
   // Checks for all argument swap errors at a given call site.
   // @param site Details about the call site.
   // @return All of the dected swaps at the site.
-  std::vector<Result> CheckSite(const CallSite& site);
+  std::vector<Result> CheckSite(const CallSite& site,
+                                Check whichCheck = Check::All);
 
   const CheckerConfiguration& Options() const { return Opts; }
   void setOptions(const CheckerConfiguration& opts) {

@@ -188,6 +188,117 @@ float Checker::morphemesMatch(const std::set<std::string>& arg,
   return *extreme;
 }
 
+Checker::MorphemeSet
+Checker::morphemeSetDifference(const MorphemeSet& one,
+                               const MorphemeSet& two) const {
+  MorphemeSet ret;
+  // We are removing the duplicates from the first set to report the difference,
+  // so the position followed the first set.
+  ret.Position = one.Position;
+  std::set_difference(one.Morphemes.begin(), one.Morphemes.end(),
+                      two.Morphemes.begin(), two.Morphemes.end(),
+                      std::inserter(ret.Morphemes, ret.Morphemes.begin()));
+  return ret;
+}
+
+float Checker::morphemeConfidenceAtPosition(
+    const std::string& morph, size_t pos, size_t comparedToPos,
+    const std::set<std::string>& paramMorphs) const {
+  // TODO: implement this properly. This is a placeholder implementation that
+  // considers a matching parameter morpheme at that position to be a high
+  // confidence.
+  if (paramMorphs.count(morph) > 0)
+    return 1.0f;
+  return 0.0f;
+}
+
+float Checker::similarity(const std::string& morph1,
+                          const std::string& morph2) const {
+  // TODO: implement this
+  return morph1 == morph2 ? 1.0f : 0.0f;
+}
+
+float Checker::fit(const std::string& morph, const CallSite& site,
+                   size_t argPos, const Statistics& stats) const {
+  std::string funcName = site.callDecl.fullyQualifiedName;
+  std::vector<std::string> morphsAtPos;
+  if (!stats.morphemesAtPos(funcName, argPos, morphsAtPos))
+    return 0.0f;
+
+  float ret = 0.0f;
+  for (const std::string& m : morphsAtPos) {
+    ret += similarity(morph, m) * stats.weightForMorpheme(funcName, argPos, m);
+  }
+  return ret;
+}
+
+std::optional<Result> Checker::checkForStatisticsBasedSwap(
+    const std::pair<MorphemeSet, MorphemeSet>& params,
+    const std::pair<MorphemeSet, MorphemeSet>& args, const CallSite& callSite,
+    const Statistics& stats) {
+  MorphemeSet uniqArgMorphs1 = morphemeSetDifference(args.first, args.second),
+              uniqArgMorphs2 = morphemeSetDifference(args.second, args.first);
+
+  for (const std::string& argMorph1 : uniqArgMorphs1.Morphemes) {
+    for (const std::string& argMorph2 : uniqArgMorphs2.Morphemes) {
+      // Check to see how much more common the first morpheme is at position 2
+      // than position 1, and how much more common the second morpheme is at
+      // position 1 than position 2. If they seem to not be commonly swapped,
+      // move on.
+      float psi1 = morphemeConfidenceAtPosition(
+                argMorph1, uniqArgMorphs2.Position, uniqArgMorphs1.Position,
+                params.second.Morphemes),
+            psi2 = morphemeConfidenceAtPosition(
+                argMorph2, uniqArgMorphs1.Position, uniqArgMorphs2.Position,
+                params.first.Morphemes);
+      if (psi1 <= Opts.StatsSwappedMorphemeThreshold ||
+          psi2 <= Opts.StatsSwappedMorphemeThreshold) {
+        continue;
+      }
+
+      // Only consider the case where the remainder of the morphemes are the
+      // same between both arguments.
+      std::set<std::string> one, two;
+      std::remove_copy(uniqArgMorphs1.Morphemes.begin(),
+                       uniqArgMorphs1.Morphemes.end(),
+                       std::inserter(one, one.begin()), argMorph1);
+      std::remove_copy(uniqArgMorphs2.Morphemes.begin(),
+                       uniqArgMorphs2.Morphemes.end(),
+                       std::inserter(two, two.begin()), argMorph2);
+      if (!std::equal(one.begin(), one.end(), two.begin(), two.end())) {
+        continue;
+      }
+
+      // Determine the fitness of the first arg morpheme compared to the second
+      // and vice versa to see if it exceeds a threshold.
+      float fit1 = fit(argMorph1, callSite, args.second.Position, stats),
+            fit2 = fit(argMorph2, callSite, args.first.Position, stats);
+      if (fit1 > Opts.StatsSwappedFitnessThreshold &&
+          fit2 > Opts.StatsSwappedFitnessThreshold) {
+        // Return the statistical swap result.
+        Result r;
+        r.arg1 = args.first.Position;
+        r.arg2 = args.second.Position;
+        r.score = std::make_unique<UsageStatisticsBasedScoreCard>(fit1, fit2,
+                                                                  psi1, psi2);
+        r.morphemes1 = uniqArgMorphs1.Morphemes;
+        r.morphemes2 = uniqArgMorphs2.Morphemes;
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ == 7
+        // Hack around a GCC 7.x bug where the presence of a move-only data
+        // member causes the std::optional constructor to be removed from
+        // consideration. This is the only version of GCC we have to worry about
+        // (we don't support older versions and the bug was fixed in newer
+        // versions).
+        return std::move(r);
+#else
+        return r;
+#endif
+      }
+    }
+  }
+  return std::nullopt;
+}
+
 // Removes low-quality morphemes from the given set. Returns true if removing
 // the morphemes leaves the set empty, false otherwise.
 static bool removeLowQualityMorphemes(std::set<std::string>& morphemes) {
@@ -195,7 +306,7 @@ static bool removeLowQualityMorphemes(std::set<std::string>& morphemes) {
   return morphemes.empty();
 }
 
-std::vector<Result> Checker::CheckSite(const CallSite& site) {
+std::vector<Result> Checker::CheckSite(const CallSite& site, Check whichCheck) {
   // If there aren't at least two arguments to the call, there's no swapping
   // possible, so bail out early.
   const std::vector<CallSite::ArgumentNames>& args = site.positionalArgNames;
@@ -272,13 +383,36 @@ std::vector<Result> Checker::CheckSite(const CallSite& site) {
           removeLowQualityMorphemes(arg2Morphemes.Morphemes))
         continue;
 
-      // FIXME: run the statistics-based checker if the cover-based checker
-      // does not find any issues.
-      if (std::optional<Result> coverWarning = checkForCoverBasedSwap(
-              std::make_pair(param1Morphemes, param2Morphemes),
-              std::make_pair(arg1Morphemes, arg2Morphemes), site)) {
-        results.push_back(std::move(*coverWarning));
-        continue;
+      // Run the cover-based checker first.
+      if (whichCheck == Check::All || whichCheck == Check::CoverBased) {
+        if (std::optional<Result> coverWarning = checkForCoverBasedSwap(
+                std::make_pair(param1Morphemes, param2Morphemes),
+                std::make_pair(arg1Morphemes, arg2Morphemes), site)) {
+          results.push_back(std::move(*coverWarning));
+          continue;
+        }
+      }
+
+      // If that didn't find anything, run the statistics-based checker.
+      // FIXME: this generates a fake statistics database. It should be
+      // replaced with the real database.
+      if (whichCheck == Check::All || whichCheck == Check::StatsBased) {
+        Statistics stats;
+        auto statsFiller = [&stats, &site](const MorphemeSet& M) {
+          float inc = 1.0f / M.Morphemes.size();
+          for (const std::string& m : M.Morphemes) {
+            stats.setWeightForMorpheme(site.callDecl.fullyQualifiedName,
+                                       M.Position, m, inc);
+          }
+        };
+        statsFiller(param1Morphemes);
+        statsFiller(param2Morphemes);
+
+        if (std::optional<Result> statsWarning = checkForStatisticsBasedSwap(
+                std::make_pair(param1Morphemes, param2Morphemes),
+                std::make_pair(arg1Morphemes, arg2Morphemes), site, stats)) {
+          results.push_back(std::move(*statsWarning));
+        }
       }
     }
   }
