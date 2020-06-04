@@ -20,8 +20,8 @@ add_library(
   ${PROJECT_NAME} ${${PROJECT_NAME}_H} ${${PROJECT_NAME}_SRC}
 )
 
-if(UNIX AND NOT BUILD_SHARED_LIBS)
-  # Link against libdl in a static build because sqlite3 requires it.
+if(UNIX)
+  # Link against libdl because sqlite3 requires it.
   target_link_libraries(${PROJECT_NAME} dl)
 
   # Also needs to support pthreads.
