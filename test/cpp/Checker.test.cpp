@@ -179,7 +179,7 @@ TEST(CoverSwapping, NumericSuffixes) {
   // even if there would be a swap otherwise.
   CallSite Site2;
   Site2.callDecl.fullyQualifiedName = "NegativeNumericSuffixTestArg";
-  Site2.callDecl.paramNames = {"horses", "horses"}; // Fake data is fake.
+  Site2.callDecl.paramNames = {"horses2", "horses1"}; // Fake data is fake.
   Site2.positionalArgNames = {{"horses1", "horses2"}};
 
   Results = C.CheckSite(Site2, Checker::Check::CoverBased);

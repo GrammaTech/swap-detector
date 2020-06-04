@@ -279,7 +279,8 @@ std::optional<Result> Checker::checkForStatisticsBasedSwap(
         Result r;
         r.arg1 = args.first.Position;
         r.arg2 = args.second.Position;
-        r.score = std::make_unique<UsageStatisticsBasedScoreCard>(fit1, fit2);
+        r.score = std::make_unique<UsageStatisticsBasedScoreCard>(fit1, fit2,
+                                                                  psi1, psi2);
         r.morphemes1 = uniqArgMorphs1.Morphemes;
         r.morphemes2 = uniqArgMorphs2.Morphemes;
 #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ == 7

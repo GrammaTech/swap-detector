@@ -70,14 +70,21 @@ public:
 
 class UsageStatisticsBasedScoreCard : public ScoreCard {
   float Fit1, Fit2;
+  float Psi1, Psi2;
 
 public:
-  explicit UsageStatisticsBasedScoreCard(float fit1, float fit2)
-      : Fit1(fit1), Fit2(fit2) {}
+  explicit UsageStatisticsBasedScoreCard(float fit1, float fit2, float psi1,
+                                         float psi2)
+      : Fit1(fit1), Fit2(fit2), Psi1(psi1), Psi2(psi2) {}
   CheckerKind kind() const override { return UsageStatisticsBased; }
+
   float score() const override { return std::max(Fit1, Fit2); }
+
   float arg1_fitness() const { return Fit1; }
   float arg2_fitness() const { return Fit2; }
+
+  float arg1_psi() const { return Psi1; }
+  float arg2_psi() const { return Psi2; }
 };
 
 // A swapped argument error.
