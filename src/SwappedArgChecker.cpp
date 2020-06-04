@@ -1,13 +1,111 @@
 #include "SwappedArgChecker.hpp"
 #include "IdentifierSplitting.hpp"
+#include "sqlite3.h"
 #include <algorithm>
 #include <cassert>
+#include <cstdio>
 #include <experimental/iterator>
 #include <iostream>
 #include <iterator>
+#include <sstream>
 #include <utility>
 
 using namespace swapped_arg;
+
+std::string test::createStatsDB(std::initializer_list<test::StatsDBRow> rows) {
+  std::string file_name = ::tmpnam(nullptr);
+
+  sqlite3* db = nullptr;
+  int rc = sqlite3_open(file_name.c_str(), &db);
+  if (rc != SQLITE_OK)
+    return "";
+
+  rc = sqlite3_exec(db,
+                    "CREATE TABLE v_weights ("
+                    "func TEXT NOT NULL,"
+                    "arg INTEGER NOT NULL CHECK(arg >= 0),"
+                    "morpheme TEXT NOT NULL,"
+                    "value REAL NOT NULL CHECK(value >= 0 AND value <= 1)"
+                    ");",
+                    nullptr, nullptr, nullptr);
+  assert(rc == SQLITE_OK && "Could not create a table in the database");
+
+  for (const auto& row : rows) {
+    auto [func, arg, morpheme, value] = row;
+    std::stringstream ss;
+    ss << "INSERT INTO v_weights "
+       << "('func', 'arg', 'morpheme', 'value')"
+       << "VALUES ('" << func << "', '" << arg << "', '" << morpheme << "', '"
+       << value << "');";
+    rc = sqlite3_exec(db, ss.str().c_str(), nullptr, nullptr, nullptr);
+    assert(rc == SQLITE_OK && "Could not add a row to the database");
+  }
+
+  (void)sqlite3_close(db);
+
+  return file_name;
+}
+
+Statistics::Statistics(const std::string& path) {
+  // We purposefully do not care about a failure to load the database at this
+  // stage. The valid() method can be used to determine if the Statistics
+  // object is valid or not.
+  if (!path.empty() &&
+      SQLITE_OK ==
+          sqlite3_open_v2(path.c_str(), &db, SQLITE_OPEN_READONLY, nullptr)) {
+    (void)sqlite3_prepare_v2(
+        db,
+        "SELECT morpheme, value FROM v_weights WHERE func == ? AND arg == ?",
+        -1, &query, nullptr);
+  }
+}
+
+Statistics::~Statistics() {
+  if (query) {
+    sqlite3_finalize(query);
+  }
+  if (db) {
+    sqlite3_close(db);
+  }
+}
+
+bool Statistics::morphemesAndWeightsAtPos(
+    const std::string& funcName, size_t argPos,
+    std::vector<std::pair<std::string, float>>& res) {
+  assert(db && "no valid database loaded");
+
+  // Helper RAII structure which binds the query arguments to the query on
+  // construction and resets the query on destruction.
+  class Binder {
+    sqlite3_stmt* query;
+
+  public:
+    Binder(sqlite3_stmt* stmt, const std::string& funcName, size_t argPos)
+        : query(stmt) {
+      (void)sqlite3_bind_text(query, 1, funcName.c_str(), -1, SQLITE_TRANSIENT);
+      (void)sqlite3_bind_int64(query, 2, static_cast<sqlite3_int64>(argPos));
+    }
+    ~Binder() {
+      (void)sqlite3_clear_bindings(query);
+      (void)sqlite3_reset(query);
+    }
+  } binder(query, funcName, argPos);
+
+  bool ret = false;
+  for (;;) {
+    int rc = sqlite3_step(query);
+    if (rc == SQLITE_DONE) {
+      break;
+    } else if (rc == SQLITE_ROW) {
+      ret = true;
+      res.emplace_back(std::string((const char*)sqlite3_column_text(query, 0)),
+                       static_cast<float>(sqlite3_column_double(query, 1)));
+    } else {
+      return false;
+    }
+  }
+  return ret;
+}
 
 std::string Result::debugStr() const { return ""; }
 
@@ -219,15 +317,15 @@ float Checker::similarity(const std::string& morph1,
 }
 
 float Checker::fit(const std::string& morph, const CallSite& site,
-                   size_t argPos, const Statistics& stats) const {
+                   size_t argPos, Statistics& stats) const {
   std::string funcName = site.callDecl.fullyQualifiedName;
-  std::vector<std::string> morphsAtPos;
-  if (!stats.morphemesAtPos(funcName, argPos, morphsAtPos))
+  std::vector<std::pair<std::string, float>> morphsAndWeightsAtPos;
+  if (!stats.morphemesAndWeightsAtPos(funcName, argPos, morphsAndWeightsAtPos))
     return 0.0f;
 
   float ret = 0.0f;
-  for (const std::string& m : morphsAtPos) {
-    ret += similarity(morph, m) * stats.weightForMorpheme(funcName, argPos, m);
+  for (const std::pair<std::string, float>& p : morphsAndWeightsAtPos) {
+    ret += similarity(morph, p.first) * p.second;
   }
   return ret;
 }
@@ -235,7 +333,7 @@ float Checker::fit(const std::string& morph, const CallSite& site,
 std::optional<Result> Checker::checkForStatisticsBasedSwap(
     const std::pair<MorphemeSet, MorphemeSet>& params,
     const std::pair<MorphemeSet, MorphemeSet>& args, const CallSite& callSite,
-    const Statistics& stats) {
+    Statistics& stats) {
   MorphemeSet uniqArgMorphs1 = morphemeSetDifference(args.first, args.second),
               uniqArgMorphs2 = morphemeSetDifference(args.second, args.first);
 
@@ -246,11 +344,11 @@ std::optional<Result> Checker::checkForStatisticsBasedSwap(
       // position 1 than position 2. If they seem to not be commonly swapped,
       // move on.
       float psi1 = morphemeConfidenceAtPosition(
-                argMorph1, uniqArgMorphs2.Position, uniqArgMorphs1.Position,
-                params.second.Morphemes),
+                argMorph1, uniqArgMorphs2.Position - 1,
+                uniqArgMorphs1.Position - 1, params.second.Morphemes),
             psi2 = morphemeConfidenceAtPosition(
-                argMorph2, uniqArgMorphs1.Position, uniqArgMorphs2.Position,
-                params.first.Morphemes);
+                argMorph2, uniqArgMorphs1.Position - 1,
+                uniqArgMorphs2.Position - 1, params.first.Morphemes);
       if (psi1 <= Opts.StatsSwappedMorphemeThreshold ||
           psi2 <= Opts.StatsSwappedMorphemeThreshold) {
         continue;
@@ -271,8 +369,8 @@ std::optional<Result> Checker::checkForStatisticsBasedSwap(
 
       // Determine the fitness of the first arg morpheme compared to the second
       // and vice versa to see if it exceeds a threshold.
-      float fit1 = fit(argMorph1, callSite, args.second.Position, stats),
-            fit2 = fit(argMorph2, callSite, args.first.Position, stats);
+      float fit1 = fit(argMorph1, callSite, args.second.Position - 1, stats),
+            fit2 = fit(argMorph2, callSite, args.first.Position - 1, stats);
       if (fit1 > Opts.StatsSwappedFitnessThreshold &&
           fit2 > Opts.StatsSwappedFitnessThreshold) {
         // Return the statistical swap result.
@@ -397,16 +495,9 @@ std::vector<Result> Checker::CheckSite(const CallSite& site, Check whichCheck) {
       // FIXME: this generates a fake statistics database. It should be
       // replaced with the real database.
       if (whichCheck == Check::All || whichCheck == Check::StatsBased) {
-        Statistics stats;
-        auto statsFiller = [&stats, &site](const MorphemeSet& M) {
-          float inc = 1.0f / M.Morphemes.size();
-          for (const std::string& m : M.Morphemes) {
-            stats.setWeightForMorpheme(site.callDecl.fullyQualifiedName,
-                                       M.Position, m, inc);
-          }
-        };
-        statsFiller(param1Morphemes);
-        statsFiller(param2Morphemes);
+        Statistics stats(Opts.ModelPath);
+        if (!stats.valid())
+          continue;
 
         if (std::optional<Result> statsWarning = checkForStatisticsBasedSwap(
                 std::make_pair(param1Morphemes, param2Morphemes),
