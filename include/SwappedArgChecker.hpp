@@ -124,6 +124,11 @@ struct SWAPPED_ARG_EXPORT CheckerConfiguration {
 
 class SWAPPED_ARG_EXPORT Checker {
   CheckerConfiguration Opts;
+  // Note: this is a pointer because it's an incomplete type, but not a
+  // unique_ptr because that would require the type to be complete for sizeof
+  // calculations in template instantiations (such as ones made by the CSA
+  // plugin).
+  Statistics* Stats = nullptr;
 
   // Get the parameter name, if any, at the given zero-based index.
   std::optional<std::string> getParamName(const CallSite& site,
@@ -211,7 +216,8 @@ class SWAPPED_ARG_EXPORT Checker {
 
 public:
   Checker() = default;
-  explicit Checker(const CheckerConfiguration& opts) : Opts(opts) {}
+  explicit Checker(const CheckerConfiguration& opts);
+  ~Checker();
 
   enum class Check {
     CoverBased,
@@ -226,9 +232,6 @@ public:
                                 Check whichCheck = Check::All);
 
   const CheckerConfiguration& Options() const { return Opts; }
-  void setOptions(const CheckerConfiguration& opts) {
-    Opts = opts;
-  }
 };
 
 namespace test {

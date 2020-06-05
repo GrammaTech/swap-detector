@@ -419,6 +419,20 @@ static bool removeLowQualityMorphemes(std::set<std::string>& morphemes) {
   return morphemes.empty();
 }
 
+Checker::Checker(const CheckerConfiguration& opts) : Opts(opts) {
+  if (!Opts.ModelPath.empty()) {
+    Stats = new Statistics(Opts.ModelPath);
+    if (!Stats->valid()) {
+      // If we couldn't load valid stats, pretend there were no stats loaded
+      // at all rather than leave an invalid database around.
+      delete Stats;
+      Stats = nullptr;
+    }
+  }
+}
+
+Checker::~Checker() { delete Stats; }
+
 std::vector<Result> Checker::CheckSite(const CallSite& site, Check whichCheck) {
   // If there aren't at least two arguments to the call, there's no swapping
   // possible, so bail out early.
@@ -509,13 +523,13 @@ std::vector<Result> Checker::CheckSite(const CallSite& site, Check whichCheck) {
       // FIXME: this generates a fake statistics database. It should be
       // replaced with the real database.
       if (whichCheck == Check::All || whichCheck == Check::StatsBased) {
-        Statistics stats(Opts.ModelPath);
-        if (!stats.valid())
+        if (!Stats)
           continue;
+        assert(Stats->valid() && "Expected valid statistics by this point");
 
         if (std::optional<Result> statsWarning = checkForStatisticsBasedSwap(
                 std::make_pair(param1Morphemes, param2Morphemes),
-                std::make_pair(arg1Morphemes, arg2Morphemes), site, stats)) {
+                std::make_pair(arg1Morphemes, arg2Morphemes), site, *Stats)) {
           results.push_back(std::move(*statsWarning));
         }
       }
