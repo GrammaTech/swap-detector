@@ -124,8 +124,8 @@ std::string test::createStatsDB(std::initializer_list<test::StatsDBRow> rows) {
   return file_name;
 }
 
-// Calculates the indicies for all the pair-wise combinations from a list
-// of totalCount length.
+// Calculates the zero-based indicies for all the pair-wise combinations from
+// a list of totalCount length.
 static std::vector<std::pair<size_t, size_t>>
 pairwise_combinations(size_t totalCount) {
   std::vector<std::pair<size_t, size_t>> ret;
@@ -229,12 +229,12 @@ std::optional<Result> Checker::checkForCoverBasedSwap(
     return std::isdigit(suf1) && std::isdigit(suf2) &&
            one.substr(0, one.length() - 1) == two.substr(0, two.length() - 1);
   };
-  std::string param1 = *getParamName(site, params.first.Position - 1),
-              param2 = *getParamName(site, params.second.Position - 1);
+  std::string param1 = *getParamName(site, params.first.Position),
+              param2 = *getParamName(site, params.second.Position);
   if (suffixCheck(param1, param2))
     return std::nullopt;
-  std::string arg1 = *getLastArgName(site, args.first.Position - 1),
-              arg2 = *getLastArgName(site, args.second.Position - 1);
+  std::string arg1 = *getLastArgName(site, args.first.Position),
+              arg2 = *getLastArgName(site, args.second.Position);
   if (suffixCheck(arg1, arg2))
     return std::nullopt;
 
@@ -246,8 +246,8 @@ std::optional<Result> Checker::checkForCoverBasedSwap(
   const bool verified_with_stats = false;
 
   Result r;
-  r.arg1 = args.first.Position;
-  r.arg2 = args.second.Position;
+  r.arg1 = args.first.Position + 1;
+  r.arg2 = args.second.Position + 1;
   r.score = std::make_unique<ParameterNameBasedScoreCard>(worst_psi,
                                                           verified_with_stats);
   r.morphemes1 = uniqueMorphsArg1;
@@ -359,11 +359,11 @@ std::optional<Result> Checker::checkForStatisticsBasedSwap(
       // position 1 than position 2. If they seem to not be commonly swapped,
       // move on.
       float psi1 = morphemeConfidenceAtPosition(
-                argMorph1, uniqArgMorphs2.Position - 1,
-                uniqArgMorphs1.Position - 1, params.second.Morphemes),
+                argMorph1, uniqArgMorphs2.Position, uniqArgMorphs1.Position,
+                params.second.Morphemes),
             psi2 = morphemeConfidenceAtPosition(
-                argMorph2, uniqArgMorphs1.Position - 1,
-                uniqArgMorphs2.Position - 1, params.first.Morphemes);
+                argMorph2, uniqArgMorphs1.Position, uniqArgMorphs2.Position,
+                params.first.Morphemes);
       if (psi1 <= Opts.StatsSwappedMorphemeThreshold ||
           psi2 <= Opts.StatsSwappedMorphemeThreshold) {
         continue;
@@ -384,14 +384,14 @@ std::optional<Result> Checker::checkForStatisticsBasedSwap(
 
       // Determine the fitness of the first arg morpheme compared to the second
       // and vice versa to see if it exceeds a threshold.
-      float fit1 = fit(argMorph1, callSite, args.second.Position - 1, stats),
-            fit2 = fit(argMorph2, callSite, args.first.Position - 1, stats);
+      float fit1 = fit(argMorph1, callSite, args.second.Position, stats),
+            fit2 = fit(argMorph2, callSite, args.first.Position, stats);
       if (fit1 > Opts.StatsSwappedFitnessThreshold &&
           fit2 > Opts.StatsSwappedFitnessThreshold) {
         // Return the statistical swap result.
         Result r;
-        r.arg1 = args.first.Position;
-        r.arg2 = args.second.Position;
+        r.arg1 = args.first.Position + 1;
+        r.arg2 = args.second.Position + 1;
         r.score = std::make_unique<UsageStatisticsBasedScoreCard>(fit1, fit2,
                                                                   psi1, psi2);
         r.morphemes1 = uniqArgMorphs1.Morphemes;
@@ -457,9 +457,8 @@ std::vector<Result> Checker::CheckSite(const CallSite& site, Check whichCheck) {
       // function. If it does have state, this may also be more natural as a
       // data member rather than a local.
       IdentifierSplitter splitter;
-      MorphemeSet param1Morphemes{splitter.split(param1),
-                                  pairwiseArgs.first + 1},
-          param2Morphemes{splitter.split(param2), pairwiseArgs.second + 1};
+      MorphemeSet param1Morphemes{splitter.split(param1), pairwiseArgs.first},
+          param2Morphemes{splitter.split(param2), pairwiseArgs.second};
 
       // Having split the parameter identifiers into morphemes, remove any
       // morphemes that are low quality and bail out if there are no usable
@@ -479,7 +478,7 @@ std::vector<Result> Checker::CheckSite(const CallSite& site, Check whichCheck) {
       // to produce only one identifier per argument, consider flattening the
       // interface of how we represent arguments.
       auto morphemeCollector = [&args, &splitter](MorphemeSet& m, size_t pos) {
-        m.Position = pos + 1;
+        m.Position = pos;
         for (const auto& arg : args[pos]) {
           const auto& morphs = splitter.split(arg);
           m.Morphemes.insert(morphs.begin(), morphs.end());

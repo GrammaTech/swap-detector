@@ -137,6 +137,7 @@ class SWAPPED_ARG_EXPORT Checker {
 
   struct MorphemeSet {
     std::set<std::string> Morphemes;
+    // Position is zero-based.
     size_t Position;
   };
 
