@@ -10,6 +10,84 @@
 #include <sstream>
 #include <utility>
 
+namespace swapped_arg {
+class Statistics {
+  sqlite3* db = nullptr;
+  sqlite3_stmt* query = nullptr;
+
+public:
+  explicit Statistics(const std::string& path) {
+    // We purposefully do not care about a failure to load the database at this
+    // stage. The valid() method can be used to determine if the Statistics
+    // object is valid or not.
+    if (!path.empty() &&
+        SQLITE_OK ==
+            sqlite3_open_v2(path.c_str(), &db, SQLITE_OPEN_READONLY, nullptr)) {
+      (void)sqlite3_prepare_v2(
+          db,
+          "SELECT morpheme, value FROM v_weights WHERE func == ? AND arg == ?",
+          -1, &query, nullptr);
+    }
+  }
+  ~Statistics() {
+    if (query) {
+      (void)sqlite3_finalize(query);
+    }
+    if (db) {
+      (void)sqlite3_close(db);
+    }
+  }
+
+  // Returns true if the Statistics class has a valid statistics database,
+  // false otherwise.
+  bool valid() const { return db != nullptr && query != nullptr; }
+
+  // Finds all morphemes for the given function call and argument position, as
+  // well as the scaled weight for each morpheme. The sum of the weights at
+  // that position add up to 1. Returns false if the function does not exist or
+  // the argument position is invalid; true otherwise.
+  bool
+  morphemesAndWeightsAtPos(const std::string& funcName, size_t argPos,
+                           std::vector<std::pair<std::string, float>>& res) {
+    assert(valid() && "no valid database loaded");
+
+    // Helper RAII structure which binds the query arguments to the query on
+    // construction and resets the query on destruction.
+    class Binder {
+      sqlite3_stmt* query;
+
+    public:
+      Binder(sqlite3_stmt* stmt, const std::string& funcName, size_t argPos)
+          : query(stmt) {
+        (void)sqlite3_bind_text(query, 1, funcName.c_str(), -1,
+                                SQLITE_TRANSIENT);
+        (void)sqlite3_bind_int64(query, 2, static_cast<sqlite3_int64>(argPos));
+      }
+      ~Binder() {
+        (void)sqlite3_clear_bindings(query);
+        (void)sqlite3_reset(query);
+      }
+    } binder(query, funcName, argPos);
+
+    bool ret = false;
+    for (;;) {
+      int rc = sqlite3_step(query);
+      if (rc == SQLITE_DONE) {
+        break;
+      } else if (rc == SQLITE_ROW) {
+        ret = true;
+        res.emplace_back(std::string(reinterpret_cast<const char*>(
+                             sqlite3_column_text(query, 0))),
+                         static_cast<float>(sqlite3_column_double(query, 1)));
+      } else {
+        return false;
+      }
+    }
+    return ret;
+  }
+};
+} // namespace swapped_arg
+
 using namespace swapped_arg;
 
 std::string test::createStatsDB(std::initializer_list<test::StatsDBRow> rows) {
@@ -45,69 +123,6 @@ std::string test::createStatsDB(std::initializer_list<test::StatsDBRow> rows) {
 
   return file_name;
 }
-
-Statistics::Statistics(const std::string& path) {
-  // We purposefully do not care about a failure to load the database at this
-  // stage. The valid() method can be used to determine if the Statistics
-  // object is valid or not.
-  if (!path.empty() &&
-      SQLITE_OK ==
-          sqlite3_open_v2(path.c_str(), &db, SQLITE_OPEN_READONLY, nullptr)) {
-    (void)sqlite3_prepare_v2(
-        db,
-        "SELECT morpheme, value FROM v_weights WHERE func == ? AND arg == ?",
-        -1, &query, nullptr);
-  }
-}
-
-Statistics::~Statistics() {
-  if (query) {
-    sqlite3_finalize(query);
-  }
-  if (db) {
-    sqlite3_close(db);
-  }
-}
-
-bool Statistics::morphemesAndWeightsAtPos(
-    const std::string& funcName, size_t argPos,
-    std::vector<std::pair<std::string, float>>& res) {
-  assert(db && "no valid database loaded");
-
-  // Helper RAII structure which binds the query arguments to the query on
-  // construction and resets the query on destruction.
-  class Binder {
-    sqlite3_stmt* query;
-
-  public:
-    Binder(sqlite3_stmt* stmt, const std::string& funcName, size_t argPos)
-        : query(stmt) {
-      (void)sqlite3_bind_text(query, 1, funcName.c_str(), -1, SQLITE_TRANSIENT);
-      (void)sqlite3_bind_int64(query, 2, static_cast<sqlite3_int64>(argPos));
-    }
-    ~Binder() {
-      (void)sqlite3_clear_bindings(query);
-      (void)sqlite3_reset(query);
-    }
-  } binder(query, funcName, argPos);
-
-  bool ret = false;
-  for (;;) {
-    int rc = sqlite3_step(query);
-    if (rc == SQLITE_DONE) {
-      break;
-    } else if (rc == SQLITE_ROW) {
-      ret = true;
-      res.emplace_back(std::string((const char*)sqlite3_column_text(query, 0)),
-                       static_cast<float>(sqlite3_column_double(query, 1)));
-    } else {
-      return false;
-    }
-  }
-  return ret;
-}
-
-std::string Result::debugStr() const { return ""; }
 
 // Calculates the indicies for all the pair-wise combinations from a list
 // of totalCount length.
@@ -324,8 +339,8 @@ float Checker::fit(const std::string& morph, const CallSite& site,
     return 0.0f;
 
   float ret = 0.0f;
-  for (const std::pair<std::string, float>& p : morphsAndWeightsAtPos) {
-    ret += similarity(morph, p.first) * p.second;
+  for (const auto& [m, weight] : morphsAndWeightsAtPos) {
+    ret += similarity(morph, m) * weight;
   }
   return ret;
 }

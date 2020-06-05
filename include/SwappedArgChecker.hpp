@@ -17,6 +17,7 @@ struct sqlite3;
 struct sqlite3_stmt;
 
 namespace swapped_arg {
+class Statistics;
 
 // A description of a function being called.
 class CallDeclDescriptor {
@@ -103,8 +104,6 @@ public:
   std::set<std::string> morphemes1, morphemes2;
 
   std::unique_ptr<ScoreCard> score;
-
-  std::string debugStr() const;
 };
 
 struct SWAPPED_ARG_EXPORT CheckerConfiguration {
@@ -122,26 +121,6 @@ struct SWAPPED_ARG_EXPORT CheckerConfiguration {
   float StatsSwappedFitnessThreshold = 0.75f; // FIXME: made up number!!
 };
 
-class Statistics {
-  sqlite3* db = nullptr;
-  sqlite3_stmt* query = nullptr;
-
-public:
-  explicit Statistics(const std::string& path);
-  ~Statistics();
-
-  // Returns true if the Statistics class has a valid statistics database,
-  // false otherwise.
-  bool valid() const { return db != nullptr && query != nullptr; }
-
-  // Finds all morphemes for the given function call and argument position, as
-  // well as the scaled weight for each morpheme. The sum of the weights at
-  // that position add up to 1. Returns false if the function does not exist or
-  // the argument position is invalid; true otherwise.
-  bool
-  morphemesAndWeightsAtPos(const std::string& funcName, size_t argPos,
-                           std::vector<std::pair<std::string, float>>& res);
-};
 
 class SWAPPED_ARG_EXPORT Checker {
   CheckerConfiguration Opts;
