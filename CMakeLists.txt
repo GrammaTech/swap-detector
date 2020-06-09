@@ -51,6 +51,11 @@ set(SWAPPED_ARG_INCLUDE_DIR
 )
 add_subdirectory(src)
 
+option(SWAPPED_ARGS_BUILD_CLANG_PLUGIN "Build the clang plugin" ON)
+if (SWAPPED_ARGS_BUILD_CLANG_PLUGIN)
+  add_subdirectory(clang_plugin)
+endif()
+
 option(SWAPPED_ARGS_BUILD_PYTHON "Build python SWIG bindings." OFF)
 
 if (SWAPPED_ARGS_BUILD_PYTHON)
