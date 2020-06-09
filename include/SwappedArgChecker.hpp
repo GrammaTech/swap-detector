@@ -3,15 +3,21 @@
 
 #include "Compiler.hpp"
 
+#include <initializer_list>
 #include <map>
 #include <memory>
 #include <optional>
 #include <set>
 #include <string>
+#include <tuple>
 #include <variant>
 #include <vector>
 
+struct sqlite3;
+struct sqlite3_stmt;
+
 namespace swapped_arg {
+class Statistics;
 
 // A description of a function being called.
 class CallDeclDescriptor {
@@ -98,8 +104,6 @@ public:
   std::set<std::string> morphemes1, morphemes2;
 
   std::unique_ptr<ScoreCard> score;
-
-  std::string debugStr() const;
 };
 
 struct SWAPPED_ARG_EXPORT CheckerConfiguration {
@@ -117,53 +121,14 @@ struct SWAPPED_ARG_EXPORT CheckerConfiguration {
   float StatsSwappedFitnessThreshold = 0.75f; // FIXME: made up number!!
 };
 
-class Statistics {
-  // FIXME: This maps the function, position, morpheme tuple to a score. It
-  // will be replaced by a real database someday, I hope.
-  std::map<std::string, std::map<size_t, std::map<std::string, float>>> MorphDB;
-
-public:
-  // This function will eventually be deleted, but exists so that we can get
-  // some use out of the interface. It should be replaced by a constructor that
-  // loads the statistics database instead.
-  void setWeightForMorpheme(const std::string& funcName, size_t argPos,
-                            const std::string& morpheme, float value) {
-    MorphDB[funcName][argPos][morpheme] = value;
-  }
-  // Determine the relative frequency of the given morpheme compared to any
-  // other morpheme in given position. Returns a value between [0, 1) such that
-  // the sum of weights for all morphemes that occur in that position is 1.
-  float weightForMorpheme(const std::string& funcName, size_t argPos,
-                          const std::string& morpheme) const {
-    if (auto funcIt = MorphDB.find(funcName); funcIt != MorphDB.end()) {
-      if (auto posIt = funcIt->second.find(argPos);
-          posIt != funcIt->second.end()) {
-        if (auto morphIt = posIt->second.find(morpheme);
-            morphIt != posIt->second.end()) {
-          return morphIt->second;
-        }
-      }
-    }
-    return 0.0f;
-  }
-
-  bool morphemesAtPos(const std::string& funcName, size_t argPos,
-                      std::vector<std::string>& morphemes) const {
-    if (auto funcIt = MorphDB.find(funcName); funcIt != MorphDB.end()) {
-      if (auto posIt = funcIt->second.find(argPos);
-          posIt != funcIt->second.end()) {
-        for (const auto& kvpair : posIt->second) {
-          morphemes.push_back(kvpair.first);
-        }
-        return true;
-      }
-    }
-    return false;
-  }
-};
 
 class SWAPPED_ARG_EXPORT Checker {
   CheckerConfiguration Opts;
+  // Note: this is a pointer because it's an incomplete type, but not a
+  // unique_ptr because that would require the type to be complete for sizeof
+  // calculations in template instantiations (such as ones made by the CSA
+  // plugin).
+  Statistics* Stats = nullptr;
 
   // Get the parameter name, if any, at the given zero-based index.
   std::optional<std::string> getParamName(const CallSite& site,
@@ -177,6 +142,7 @@ class SWAPPED_ARG_EXPORT Checker {
 
   struct MorphemeSet {
     std::set<std::string> Morphemes;
+    // Position is zero-based.
     size_t Position;
   };
 
@@ -228,8 +194,7 @@ class SWAPPED_ARG_EXPORT Checker {
   std::optional<Result>
   checkForStatisticsBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
                               const std::pair<MorphemeSet, MorphemeSet>& args,
-                              const CallSite& callSite,
-                              const Statistics& stats);
+                              const CallSite& callSite, Statistics& stats);
   // Determines the confidence of how much more common it is to see the given
   // morpheme at the given position compared to another position. Returns values
   // in the range 0.0f (for no confidence) to infinity (for highest confidence).
@@ -247,11 +212,12 @@ class SWAPPED_ARG_EXPORT Checker {
   // compared to the other morphemes used at that position in other function
   // calls. Returns a value between [0, 1).
   float fit(const std::string& morph, const CallSite& site, size_t argPos,
-            const Statistics& stats) const;
+            Statistics& stats) const;
 
 public:
   Checker() = default;
-  explicit Checker(const CheckerConfiguration& opts) : Opts(opts) {}
+  explicit Checker(const CheckerConfiguration& opts);
+  ~Checker();
 
   enum class Check {
     CoverBased,
@@ -266,10 +232,17 @@ public:
                                 Check whichCheck = Check::All);
 
   const CheckerConfiguration& Options() const { return Opts; }
-  void setOptions(const CheckerConfiguration& opts) {
-    Opts = opts;
-  }
 };
 
+namespace test {
+// This interface only exists to enable unit testing to create a stats database
+// on the fly, and should not be used by production code. The the fields of the
+// tuple are: function name, argument position, morpheme, weight. The function
+// returns the path on the file system to the database created. The database is
+// created in the current working directory and it is the caller's
+// responsibility to delete the file when no longer needed.
+using StatsDBRow = std::tuple<std::string, size_t, std::string, float>;
+std::string createStatsDB(std::initializer_list<StatsDBRow> rows);
+} // namespace test
 } // end namespace swapped_arg
 #endif // GT_SWAPPED_ARG_CHECKER_H

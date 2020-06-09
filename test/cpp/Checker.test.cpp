@@ -1,8 +1,26 @@
 #include "SwappedArgChecker.hpp"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include <cstdio>
 
 using namespace swapped_arg;
+
+class WithStatsDatabase {
+  CheckerConfiguration Config;
+
+public:
+  // Tuple order is {function, argPos, morpheme, weight}
+  explicit WithStatsDatabase(std::initializer_list<test::StatsDBRow> rows) {
+    Config.ModelPath = test::createStatsDB(rows);
+  }
+  ~WithStatsDatabase() {
+    if (!Config.ModelPath.empty()) {
+      ::remove(Config.ModelPath.c_str());
+    }
+  }
+
+  operator const CheckerConfiguration&() const { return Config; }
+};
 
 TEST(CoverSwapping, Basics) {
   Checker C;
@@ -21,7 +39,9 @@ TEST(CoverSwapping, Basics) {
 }
 
 TEST(StatsSwapping, Basics) {
-  Checker C;
+  WithStatsDatabase Config(
+      {{"BasicTest", 0, "cats", 1.0f}, {"BasicTest", 1, "dogs", 1.0f}});
+  Checker C(Config);
 
   CallSite Site;
   Site.callDecl.fullyQualifiedName = "BasicTest";
@@ -55,7 +75,9 @@ TEST(CoverSwapping, DifferentMorphemeCases) {
 
 TEST(StatsSwapping, DifferentMorphemeCases) {
   // Ensure that case does not matter when finding a swap.
-  Checker C;
+  WithStatsDatabase Config({{"DifferentMorphemeCasesTest", 0, "dogs", 1.0f},
+                            {"DifferentMorphemeCasesTest", 1, "cats", 1.0f}});
+  Checker C(Config);
 
   CallSite Site;
   Site.callDecl.fullyQualifiedName = "DifferentMorphemeCasesTest";
@@ -88,7 +110,10 @@ TEST(CoverSwapping, DifferentMorphemeCounts) {
 TEST(StatsSwapping, DifferentRemainingMorphemes) {
   // Currently we do not expect to find stats-based swaps when the remaining
   // morphemes after confidence checking are not identical.
-  Checker C;
+  WithStatsDatabase Config(
+      {{"DifferentRemainingMorphemesTest", 0, "dogs", 1.0f},
+       {"DifferentRemainingMorphemesTest", 1, "cats", 1.0f}});
+  Checker C(Config);
 
   CallSite Site;
   Site.callDecl.fullyQualifiedName = "DifferentRemainingMorphemesTest";
