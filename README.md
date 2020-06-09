@@ -47,7 +47,6 @@ Option | Description
 ------ | -----------
 `SWAPPED_ARGS_BUILD_CLANG_PLUGIN` | Enables building the Clang plugin. Default: ON
 `SWAPPED_ARGS_BUILD_TESTS` | Enables building tests. Default: ON
-`SWAPPED_ARGS_BUILD_SHARED_LIBS` | Enables building a shared library instead of a static library. Default: ON
 
 ### Automatic Downloads
 As part of the CMake configuration, the latest master branch of [googletest]

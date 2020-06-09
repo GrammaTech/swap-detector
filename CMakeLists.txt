@@ -27,14 +27,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   endif()
 endif()
 
-# This just sets the builtin BUILD_SHARED_LIBS, but if defaults to ON instead of
-# OFF.
-option(SWAPPED_ARGS_BUILD_SHARED_LIBS "Build shared libraries." ON)
-if(SWAPPED_ARGS_BUILD_SHARED_LIBS)
-  set(BUILD_SHARED_LIBS ON)
-else()
-  set(BUILD_SHARED_LIBS OFF)
-endif()
 if(UNIX AND NOT BUILD_SHARED_LIBS)
   # Find only static libraries
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
