@@ -56,12 +56,6 @@ if (SWAPPED_ARGS_BUILD_CLANG_PLUGIN)
   add_subdirectory(clang_plugin)
 endif()
 
-option(SWAPPED_ARGS_BUILD_PYTHON "Build python SWIG bindings." OFF)
-
-if (SWAPPED_ARGS_BUILD_PYTHON)
-  message(WARNING "Buiding Python extension has been temporarily removed")
-endif()
-
 option(SWAPPED_ARGS_BUILD_TESTS "Build tests." ON)
 if(SWAPPED_ARGS_BUILD_TESTS)
   message(STATUS "Getting googletest: ...")
