@@ -19,9 +19,9 @@ include_directories(
 
 add_definitions(${LLVM_DEFINITIONS})
 
-add_llvm_library(APIExtractor MODULE
-                 APIExtractor.cpp
+add_llvm_library(SwappedArgPlugin MODULE
                  ExprNames.cpp
+                 Plugin.cpp
                  SwappedArgChecker.cpp
                  PLUGIN_TOOL
                  clang

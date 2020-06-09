@@ -14,7 +14,7 @@
  */
 
 #include "SwappedArgChecker.h"
-#include <clang/StaticAnalyzer/Core/PathSensitive/CheckerHelpers.h>
+#include <clang/StaticAnalyzer/Core/AnalyzerOptions.h>
 #include <clang/StaticAnalyzer/Frontend/CheckerRegistry.h>
 
 extern "C" const char clang_analyzerAPIVersionString[] =
