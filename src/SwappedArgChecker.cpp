@@ -25,7 +25,7 @@ public:
             sqlite3_open_v2(path.c_str(), &db, SQLITE_OPEN_READONLY, nullptr)) {
       (void)sqlite3_prepare_v2(
           db,
-          "SELECT morpheme, value FROM v_weights WHERE func == ? AND arg == ?",
+          "SELECT morpheme, value FROM weights WHERE func == ? AND arg == ?",
           -1, &query, nullptr);
     }
   }
@@ -99,7 +99,7 @@ std::string test::createStatsDB(std::initializer_list<test::StatsDBRow> rows) {
     return "";
 
   rc = sqlite3_exec(db,
-                    "CREATE TABLE v_weights ("
+                    "CREATE TABLE weights ("
                     "func TEXT NOT NULL,"
                     "arg INTEGER NOT NULL CHECK(arg >= 0),"
                     "morpheme TEXT NOT NULL,"
@@ -111,7 +111,7 @@ std::string test::createStatsDB(std::initializer_list<test::StatsDBRow> rows) {
   for (const auto& row : rows) {
     auto [func, arg, morpheme, value] = row;
     std::stringstream ss;
-    ss << "INSERT INTO v_weights "
+    ss << "INSERT INTO weights "
        << "('func', 'arg', 'morpheme', 'value')"
        << "VALUES ('" << func << "', '" << arg << "', '" << morpheme << "', '"
        << value << "');";
