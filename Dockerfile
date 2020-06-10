@@ -14,8 +14,8 @@ WORKDIR /gt/
 RUN git clone https://github.com/llvm/llvm-project.git
 RUN git -C llvm-project checkout llvmorg-10.0.0
 # Build and install it
-RUN mkdir llvm-build && pushd llvm-build && \
+RUN mkdir llvm-build && cd llvm-build && \
     cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLLVM_ENABLE_ASSERTIONS=1 -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_INSTALL_UTILS=1 -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TOOL_CLANG_BUILD=1 -DCMAKE_INSTALL_PREFIX=$PWD/../llvm-install ../llvm-project/llvm && \
-    cmake --build . && cmake --build . --target install && popd
+    cmake --build . && cmake --build . --target install && cd ..
 
 CMD ["code/.ci/run_tests.sh"]
