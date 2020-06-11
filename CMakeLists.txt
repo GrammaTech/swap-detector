@@ -3,6 +3,10 @@ cmake_minimum_required(VERSION 3.10.0)
 # Enable project versions.
 cmake_policy(SET CMP0048 NEW)
 
+if (NOT CMAKE_VERSION VERSION_LESS "3.13")
+  cmake_policy(SET CMP0077 NEW)
+endif()
+
 project(
   SwappedArgChecker
   VERSION "0.0.1"
