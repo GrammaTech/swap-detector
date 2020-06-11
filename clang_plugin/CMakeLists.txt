@@ -29,3 +29,5 @@ add_llvm_library(SwappedArgPlugin MODULE
                  SwappedArgChecker
                  LINK_LIBS
                  SwappedArgChecker)
+
+add_subdirectory(test)
