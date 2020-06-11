@@ -17,11 +17,11 @@ static std::optional<std::string> PyStrToStr(PyObject* pystr) {
 
 /// Converts a std::set of morphemes to a Python set.
 static PyOwnedObject MorphemeSetToPy(const std::set<std::string>& morphemes) {
-  PyOwnedObject result = PySet_New(nullptr);
+  PyOwnedObject result(PySet_New(nullptr));
   if (!result)
-    return nullptr;
+    return PyOwnedObject();
   for (const std::string& m : morphemes) {
-    PyOwnedObject mPy = PyUnicode_FromStringAndSize(m.c_str(), m.size());
+    PyOwnedObject mPy(PyUnicode_FromStringAndSize(m.c_str(), m.size()));
     if (!mPy)
       return nullptr;
     if (PySet_Add(result.get(), mPy.get()) < 0)
@@ -33,17 +33,17 @@ static PyOwnedObject MorphemeSetToPy(const std::set<std::string>& morphemes) {
 
 /// Converts a Result into a Python dict.
 static PyOwnedObject ResultToPy(const swapped_arg::Result& result) {
-  PyOwnedObject resultDict = PyDict_New();
+  PyOwnedObject resultDict(PyDict_New());
   if (!resultDict)
     return nullptr;
 
-  PyOwnedObject arg1 = PyLong_FromSize_t(result.arg1);
+  PyOwnedObject arg1(PyLong_FromSize_t(result.arg1));
   if (!arg1)
     return nullptr;
   if (PyDict_SetItemString(resultDict.get(), "arg1", arg1.get()) < 0)
     return nullptr;
 
-  PyOwnedObject arg2 = PyLong_FromSize_t(result.arg2);
+  PyOwnedObject arg2(PyLong_FromSize_t(result.arg2));
   if (!arg2)
     return nullptr;
   if (PyDict_SetItemString(resultDict.get(), "arg2", arg2.get()) < 0)
@@ -99,13 +99,13 @@ static PyObject* Checker_Check(CheckerObject* self, PyObject* args,
   // function.
   swapped_arg::CallSite site;
   {
-    PyOwnedObject iterator = PyObject_GetIter(arguments);
+    PyOwnedObject iterator(PyObject_GetIter(arguments));
     if (!iterator) {
       PyErr_SetString(PyExc_TypeError, "arguments must be an iterable of str");
       return nullptr;
     }
 
-    while (PyOwnedObject item = PyIter_Next(iterator.get())) {
+    while (PyOwnedObject item = PyOwnedObject(PyIter_Next(iterator.get()))) {
       if (!PyUnicode_Check(item.get())) {
         PyErr_SetString(PyExc_TypeError,
                         "arguments must be an iterable of str");
@@ -121,14 +121,14 @@ static PyObject* Checker_Check(CheckerObject* self, PyObject* args,
       return nullptr;
   }
   if (paramNames && paramNames != Py_None) {
-    PyOwnedObject iterator = PyObject_GetIter(paramNames);
+    PyOwnedObject iterator(PyObject_GetIter(paramNames));
     if (!iterator) {
       PyErr_SetString(PyExc_TypeError, "parameters must be an iterable of str");
       return nullptr;
     }
 
     site.callDecl.paramNames = std::vector<std::string>();
-    while (PyOwnedObject item = PyIter_Next(iterator.get())) {
+    while (PyOwnedObject item = PyOwnedObject(PyIter_Next(iterator.get()))) {
       if (!PyUnicode_Check(item.get())) {
         PyErr_SetString(PyExc_TypeError,
                         "parameters must be an iterable of str");
@@ -153,7 +153,7 @@ static PyObject* Checker_Check(CheckerObject* self, PyObject* args,
     site.callDecl.fullyQualifiedName = callee;
   }
 
-  PyOwnedObject resultList = PyList_New(0);
+  PyOwnedObject resultList(PyList_New(0));
   if (!resultList)
     return nullptr;
 
@@ -230,7 +230,7 @@ PyMODINIT_FUNC PyInit_swappedargs(void) {
   if (PyType_Ready(&Checker_Type) < 0)
     return nullptr;
 
-  PyOwnedObject m = PyModule_Create(&Checker_Module);
+  PyOwnedObject m(PyModule_Create(&Checker_Module));
   if (!m)
     return nullptr;
 
