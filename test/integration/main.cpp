@@ -58,7 +58,7 @@ static bool runCheck(const std::string& functionName,
 
   Checker check;
   std::vector<Result> results = check.CheckSite(site);
-  for (auto& res : results) {
+  for (const auto& res : results) {
     std::cerr << "ERROR (" << callSiteFile << ":" << callSiteLineNum
               << "): " << site.callDecl.fullyQualifiedName
               << " has swapped arguments " << res.arg1 << " and " << res.arg2

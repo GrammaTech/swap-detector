@@ -1,11 +1,11 @@
-# Need 3.14 to support UseSWIG
-cmake_minimum_required(VERSION 3.14.0)
+cmake_minimum_required(VERSION 3.10.0)
 
 # Enable project versions.
 cmake_policy(SET CMP0048 NEW)
 
-# Use the SWIG_MODULE_NAME property.
-cmake_policy(SET CMP0086 NEW)
+if (NOT CMAKE_VERSION VERSION_LESS "3.13")
+  cmake_policy(SET CMP0077 NEW)
+endif()
 
 project(
   SwappedArgChecker
@@ -31,14 +31,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   endif()
 endif()
 
-# This just sets the builtin BUILD_SHARED_LIBS, but if defaults to ON instead of
-# OFF.
-option(SWAPPED_ARGS_BUILD_SHARED_LIBS "Build shared libraries." ON)
-if(SWAPPED_ARGS_BUILD_SHARED_LIBS)
-  set(BUILD_SHARED_LIBS ON)
-else()
-  set(BUILD_SHARED_LIBS OFF)
-endif()
 if(UNIX AND NOT BUILD_SHARED_LIBS)
   # Find only static libraries
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
@@ -73,6 +65,11 @@ if(SWAPPED_ARGS_BUILD_PYTHON)
        WORKING_DIRECTORY \"${CMAKE_CURRENT_SOURCE_DIR}/python\")"
       )
   endif()
+endif()
+
+option(SWAPPED_ARGS_BUILD_CLANG_PLUGIN "Build the clang plugin" ON)
+if (SWAPPED_ARGS_BUILD_CLANG_PLUGIN)
+  add_subdirectory(clang_plugin)
 endif()
 
 option(SWAPPED_ARGS_BUILD_TESTS "Build tests." ON)

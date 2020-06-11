@@ -1,18 +1,131 @@
 #include "SwappedArgChecker.hpp"
 #include "IdentifierSplitting.hpp"
+#include "sqlite3.h"
 #include <algorithm>
 #include <cassert>
+#include <cstdio>
 #include <experimental/iterator>
 #include <iostream>
 #include <iterator>
+#include <sstream>
 #include <utility>
+
+namespace swapped_arg {
+class Statistics {
+  sqlite3* db = nullptr;
+  sqlite3_stmt* query = nullptr;
+
+public:
+  explicit Statistics(const std::string& path) {
+    // We purposefully do not care about a failure to load the database at this
+    // stage. The valid() method can be used to determine if the Statistics
+    // object is valid or not.
+    if (!path.empty() &&
+        SQLITE_OK ==
+            sqlite3_open_v2(path.c_str(), &db, SQLITE_OPEN_READONLY, nullptr)) {
+      (void)sqlite3_prepare_v2(
+          db,
+          "SELECT morpheme, value FROM weights WHERE func == ? AND arg == ?",
+          -1, &query, nullptr);
+    }
+  }
+  ~Statistics() {
+    if (query) {
+      (void)sqlite3_finalize(query);
+    }
+    if (db) {
+      (void)sqlite3_close(db);
+    }
+  }
+
+  // Returns true if the Statistics class has a valid statistics database,
+  // false otherwise.
+  bool valid() const { return db != nullptr && query != nullptr; }
+
+  // Finds all morphemes for the given function call and argument position, as
+  // well as the scaled weight for each morpheme. The sum of the weights at
+  // that position add up to 1. Returns false if the function does not exist or
+  // the argument position is invalid; true otherwise.
+  bool
+  morphemesAndWeightsAtPos(const std::string& funcName, size_t argPos,
+                           std::vector<std::pair<std::string, float>>& res) {
+    assert(valid() && "no valid database loaded");
+
+    // Helper RAII structure which binds the query arguments to the query on
+    // construction and resets the query on destruction.
+    class Binder {
+      sqlite3_stmt* query;
+
+    public:
+      Binder(sqlite3_stmt* stmt, const std::string& funcName, size_t argPos)
+          : query(stmt) {
+        (void)sqlite3_bind_text(query, 1, funcName.c_str(), -1,
+                                SQLITE_TRANSIENT);
+        (void)sqlite3_bind_int64(query, 2, static_cast<sqlite3_int64>(argPos));
+      }
+      ~Binder() {
+        (void)sqlite3_clear_bindings(query);
+        (void)sqlite3_reset(query);
+      }
+    } binder(query, funcName, argPos);
+
+    bool ret = false;
+    for (;;) {
+      int rc = sqlite3_step(query);
+      if (rc == SQLITE_DONE) {
+        break;
+      } else if (rc == SQLITE_ROW) {
+        ret = true;
+        res.emplace_back(std::string(reinterpret_cast<const char*>(
+                             sqlite3_column_text(query, 0))),
+                         static_cast<float>(sqlite3_column_double(query, 1)));
+      } else {
+        return false;
+      }
+    }
+    return ret;
+  }
+};
+} // namespace swapped_arg
 
 using namespace swapped_arg;
 
-std::string Result::debugStr() const { return ""; }
+std::string test::createStatsDB(std::initializer_list<test::StatsDBRow> rows) {
+  std::string file_name = ::tmpnam(nullptr);
 
-// Calculates the indicies for all the pair-wise combinations from a list
-// of totalCount length.
+  sqlite3* db = nullptr;
+  int rc = sqlite3_open(file_name.c_str(), &db);
+  if (rc != SQLITE_OK)
+    return "";
+
+  rc = sqlite3_exec(db,
+                    "CREATE TABLE weights ("
+                    "func TEXT NOT NULL,"
+                    "arg INTEGER NOT NULL CHECK(arg >= 0),"
+                    "morpheme TEXT NOT NULL,"
+                    "value REAL NOT NULL CHECK(value >= 0 AND value <= 1)"
+                    ");",
+                    nullptr, nullptr, nullptr);
+  assert(rc == SQLITE_OK && "Could not create a table in the database");
+
+  for (const auto& row : rows) {
+    auto [func, arg, morpheme, value] = row;
+    std::stringstream ss;
+    ss << "INSERT INTO weights "
+       << "('func', 'arg', 'morpheme', 'value')"
+       << "VALUES ('" << func << "', '" << arg << "', '" << morpheme << "', '"
+       << value << "');";
+    rc = sqlite3_exec(db, ss.str().c_str(), nullptr, nullptr, nullptr);
+    assert(rc == SQLITE_OK && "Could not add a row to the database");
+  }
+
+  (void)sqlite3_close(db);
+
+  return file_name;
+}
+
+// Calculates the zero-based indicies for all the pair-wise combinations from
+// a list of totalCount length.
 static std::vector<std::pair<size_t, size_t>>
 pairwise_combinations(size_t totalCount) {
   std::vector<std::pair<size_t, size_t>> ret;
@@ -116,12 +229,12 @@ std::optional<Result> Checker::checkForCoverBasedSwap(
     return std::isdigit(suf1) && std::isdigit(suf2) &&
            one.substr(0, one.length() - 1) == two.substr(0, two.length() - 1);
   };
-  std::string param1 = *getParamName(site, params.first.Position - 1),
-              param2 = *getParamName(site, params.second.Position - 1);
+  std::string param1 = *getParamName(site, params.first.Position),
+              param2 = *getParamName(site, params.second.Position);
   if (suffixCheck(param1, param2))
     return std::nullopt;
-  std::string arg1 = *getLastArgName(site, args.first.Position - 1),
-              arg2 = *getLastArgName(site, args.second.Position - 1);
+  std::string arg1 = *getLastArgName(site, args.first.Position),
+              arg2 = *getLastArgName(site, args.second.Position);
   if (suffixCheck(arg1, arg2))
     return std::nullopt;
 
@@ -133,13 +246,21 @@ std::optional<Result> Checker::checkForCoverBasedSwap(
   const bool verified_with_stats = false;
 
   Result r;
-  r.arg1 = args.first.Position;
-  r.arg2 = args.second.Position;
+  r.arg1 = args.first.Position + 1;
+  r.arg2 = args.second.Position + 1;
   r.score = std::make_unique<ParameterNameBasedScoreCard>(worst_psi,
                                                           verified_with_stats);
   r.morphemes1 = uniqueMorphsArg1;
   r.morphemes2 = uniqueMorphsArg2;
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ == 7
+  // Hack around a GCC 7.x bug where the presence of a move-only data member
+  // causes the std::optional constructor to be removed from consideration.
+  // This is the only version of GCC we have to worry about (we don't support
+  // older versions and the bug was fixed in newer versions).
+  return std::move(r);
+#else
   return r;
+#endif
 }
 
 float Checker::anyAreSynonyms(
@@ -180,6 +301,117 @@ float Checker::morphemesMatch(const std::set<std::string>& arg,
   return *extreme;
 }
 
+Checker::MorphemeSet
+Checker::morphemeSetDifference(const MorphemeSet& one,
+                               const MorphemeSet& two) const {
+  MorphemeSet ret;
+  // We are removing the duplicates from the first set to report the difference,
+  // so the position followed the first set.
+  ret.Position = one.Position;
+  std::set_difference(one.Morphemes.begin(), one.Morphemes.end(),
+                      two.Morphemes.begin(), two.Morphemes.end(),
+                      std::inserter(ret.Morphemes, ret.Morphemes.begin()));
+  return ret;
+}
+
+float Checker::morphemeConfidenceAtPosition(
+    const std::string& morph, size_t pos, size_t comparedToPos,
+    const std::set<std::string>& paramMorphs) const {
+  // TODO: implement this properly. This is a placeholder implementation that
+  // considers a matching parameter morpheme at that position to be a high
+  // confidence.
+  if (paramMorphs.count(morph) > 0)
+    return 1.0f;
+  return 0.0f;
+}
+
+float Checker::similarity(const std::string& morph1,
+                          const std::string& morph2) const {
+  // TODO: implement this
+  return morph1 == morph2 ? 1.0f : 0.0f;
+}
+
+float Checker::fit(const std::string& morph, const CallSite& site,
+                   size_t argPos, Statistics& stats) const {
+  std::string funcName = site.callDecl.fullyQualifiedName;
+  std::vector<std::pair<std::string, float>> morphsAndWeightsAtPos;
+  if (!stats.morphemesAndWeightsAtPos(funcName, argPos, morphsAndWeightsAtPos))
+    return 0.0f;
+
+  float ret = 0.0f;
+  for (const auto& [m, weight] : morphsAndWeightsAtPos) {
+    ret += similarity(morph, m) * weight;
+  }
+  return ret;
+}
+
+std::optional<Result> Checker::checkForStatisticsBasedSwap(
+    const std::pair<MorphemeSet, MorphemeSet>& params,
+    const std::pair<MorphemeSet, MorphemeSet>& args, const CallSite& callSite,
+    Statistics& stats) {
+  MorphemeSet uniqArgMorphs1 = morphemeSetDifference(args.first, args.second),
+              uniqArgMorphs2 = morphemeSetDifference(args.second, args.first);
+
+  for (const std::string& argMorph1 : uniqArgMorphs1.Morphemes) {
+    for (const std::string& argMorph2 : uniqArgMorphs2.Morphemes) {
+      // Check to see how much more common the first morpheme is at position 2
+      // than position 1, and how much more common the second morpheme is at
+      // position 1 than position 2. If they seem to not be commonly swapped,
+      // move on.
+      float psi1 = morphemeConfidenceAtPosition(
+                argMorph1, uniqArgMorphs2.Position, uniqArgMorphs1.Position,
+                params.second.Morphemes),
+            psi2 = morphemeConfidenceAtPosition(
+                argMorph2, uniqArgMorphs1.Position, uniqArgMorphs2.Position,
+                params.first.Morphemes);
+      if (psi1 <= Opts.StatsSwappedMorphemeThreshold ||
+          psi2 <= Opts.StatsSwappedMorphemeThreshold) {
+        continue;
+      }
+
+      // Only consider the case where the remainder of the morphemes are the
+      // same between both arguments.
+      std::set<std::string> one, two;
+      std::remove_copy(uniqArgMorphs1.Morphemes.begin(),
+                       uniqArgMorphs1.Morphemes.end(),
+                       std::inserter(one, one.begin()), argMorph1);
+      std::remove_copy(uniqArgMorphs2.Morphemes.begin(),
+                       uniqArgMorphs2.Morphemes.end(),
+                       std::inserter(two, two.begin()), argMorph2);
+      if (!std::equal(one.begin(), one.end(), two.begin(), two.end())) {
+        continue;
+      }
+
+      // Determine the fitness of the first arg morpheme compared to the second
+      // and vice versa to see if it exceeds a threshold.
+      float fit1 = fit(argMorph1, callSite, args.second.Position, stats),
+            fit2 = fit(argMorph2, callSite, args.first.Position, stats);
+      if (fit1 > Opts.StatsSwappedFitnessThreshold &&
+          fit2 > Opts.StatsSwappedFitnessThreshold) {
+        // Return the statistical swap result.
+        Result r;
+        r.arg1 = args.first.Position + 1;
+        r.arg2 = args.second.Position + 1;
+        r.score = std::make_unique<UsageStatisticsBasedScoreCard>(fit1, fit2,
+                                                                  psi1, psi2);
+        r.morphemes1 = uniqArgMorphs1.Morphemes;
+        r.morphemes2 = uniqArgMorphs2.Morphemes;
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ == 7
+        // Hack around a GCC 7.x bug where the presence of a move-only data
+        // member causes the std::optional constructor to be removed from
+        // consideration. This is the only version of GCC we have to worry about
+        // (we don't support older versions and the bug was fixed in newer
+        // versions).
+        return std::move(r);
+#else
+        return r;
+#endif
+      }
+    }
+  }
+  return std::nullopt;
+}
+
 // Removes low-quality morphemes from the given set. Returns true if removing
 // the morphemes leaves the set empty, false otherwise.
 static bool removeLowQualityMorphemes(std::set<std::string>& morphemes) {
@@ -187,7 +419,21 @@ static bool removeLowQualityMorphemes(std::set<std::string>& morphemes) {
   return morphemes.empty();
 }
 
-std::vector<Result> Checker::CheckSite(const CallSite& site) {
+Checker::Checker(const CheckerConfiguration& opts) : Opts(opts) {
+  if (!Opts.ModelPath.empty()) {
+    Stats = new Statistics(Opts.ModelPath);
+    if (!Stats->valid()) {
+      // If we couldn't load valid stats, pretend there were no stats loaded
+      // at all rather than leave an invalid database around.
+      delete Stats;
+      Stats = nullptr;
+    }
+  }
+}
+
+Checker::~Checker() { delete Stats; }
+
+std::vector<Result> Checker::CheckSite(const CallSite& site, Check whichCheck) {
   // If there aren't at least two arguments to the call, there's no swapping
   // possible, so bail out early.
   const std::vector<CallSite::ArgumentNames>& args = site.positionalArgNames;
@@ -225,9 +471,8 @@ std::vector<Result> Checker::CheckSite(const CallSite& site) {
       // function. If it does have state, this may also be more natural as a
       // data member rather than a local.
       IdentifierSplitter splitter;
-      MorphemeSet param1Morphemes{splitter.split(param1),
-                                  pairwiseArgs.first + 1},
-          param2Morphemes{splitter.split(param2), pairwiseArgs.second + 1};
+      MorphemeSet param1Morphemes{splitter.split(param1), pairwiseArgs.first},
+          param2Morphemes{splitter.split(param2), pairwiseArgs.second};
 
       // Having split the parameter identifiers into morphemes, remove any
       // morphemes that are low quality and bail out if there are no usable
@@ -247,7 +492,7 @@ std::vector<Result> Checker::CheckSite(const CallSite& site) {
       // to produce only one identifier per argument, consider flattening the
       // interface of how we represent arguments.
       auto morphemeCollector = [&args, &splitter](MorphemeSet& m, size_t pos) {
-        m.Position = pos + 1;
+        m.Position = pos;
         for (const auto& arg : args[pos]) {
           const auto& morphs = splitter.split(arg);
           m.Morphemes.insert(morphs.begin(), morphs.end());
@@ -264,17 +509,30 @@ std::vector<Result> Checker::CheckSite(const CallSite& site) {
           removeLowQualityMorphemes(arg2Morphemes.Morphemes))
         continue;
 
-      // FIXME: run the statistics-based checker if the cover-based checker
-      // does not find any issues.
-      std::optional<Result> coverWarning = checkForCoverBasedSwap(
-          std::make_pair(param1Morphemes, param2Morphemes),
-          std::make_pair(arg1Morphemes, arg2Morphemes), site);
-      if (coverWarning) {
-        results.push_back(std::move(*coverWarning));
-        continue;
+      // Run the cover-based checker first.
+      if (whichCheck == Check::All || whichCheck == Check::CoverBased) {
+        if (std::optional<Result> coverWarning = checkForCoverBasedSwap(
+                std::make_pair(param1Morphemes, param2Morphemes),
+                std::make_pair(arg1Morphemes, arg2Morphemes), site)) {
+          results.push_back(std::move(*coverWarning));
+          continue;
+        }
       }
 
-      // std::cout << "running the stats checker (someday)\n";
+      // If that didn't find anything, run the statistics-based checker.
+      // FIXME: this generates a fake statistics database. It should be
+      // replaced with the real database.
+      if (whichCheck == Check::All || whichCheck == Check::StatsBased) {
+        if (!Stats)
+          continue;
+        assert(Stats->valid() && "Expected valid statistics by this point");
+
+        if (std::optional<Result> statsWarning = checkForStatisticsBasedSwap(
+                std::make_pair(param1Morphemes, param2Morphemes),
+                std::make_pair(arg1Morphemes, arg2Morphemes), site, *Stats)) {
+          results.push_back(std::move(*statsWarning));
+        }
+      }
     }
   }
 

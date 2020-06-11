@@ -3,36 +3,59 @@
 Module that checks for swapped arguments in function calls.
 
 ## Prerequisites
-* CMake 3.14
+* CMake 3.10
 * GCC 7 or Visual Studio 2017
+* If enabling Clang plugin support: Clang 10 source
 
 ## Getting Started
-To get started, run cmake to generate the appropriate files for your target
-build system. Currently, only out-of-tree builds are supported. For instance,
-assuming that the repository is cloned to a directory named
-`swapped-arg-checker`:
+### Setup for building Clang
+* Check out Clang from git.
+```bash
+git clone https://github.com/llvm/llvm-project.git
+git checkout llvmorg-10.0.0
 ```
-mkdir build
-cd build
-cmake -G "Visual Studio 16 2019" -A x64 -Thost=x64 ..\swappged-arg-checker
+* Build and install LLVM.
+```bash
+mkdir llvm-build; pushd llvm-build
+cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLLVM_ENABLE_ASSERTIONS=1 -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_INSTALL_UTILS=1 -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TOOL_CLANG_BUILD=1 -DCMAKE_INSTALL_PREFIX=$PWD/../llvm-install ../llvm-src
+cmake --build . --target check-clang
+cmake --build . --target install
+popd
 ```
--or-
+* [Install lit](https://pypi.org/project/lit/). Optional but required to be able to run tests.
+```bash
+pip install --user lit
+export PATH=$PATH:$HOME/.local/bin
 ```
-cmake -G "Unix Makefiles" ../swapped-arg-checker
+* Use cmake to build the plugin:
+```bash
+mkdir build; cd build
+cmake -G Ninja -DLLVM_EXTERNAL_LIT=$(which lit) -DSWAPPED_ARGS_BUILD_CLANG_PLUGIN=ON -DCMAKE_PREFIX_PATH=$PWD/../../llvm-install/lib/cmake ~/path/to/swapped-arg-checker
+cmake --build . --target check-all
+```
+
+#### Notes
+
+If you don't have Ninja installed, you can use `-G "Unix Makefiles"` to generate makefiles instead and build using `make -j`.
+
+There is a linker warning about use of `tmpnam`. This API is only used by the testing infrastructure to generate a temporary statistics database, and is not used as part of the swapped argument checker API.
+
+#### Example
+
+```bash
+../../llvm-install/bin/scan-build -load-plugin lib/SwappedArgPlugin.so -enable-checker gt.SwappedArgs -analyzer-config gt.SwappedArgs:ModelPath=model.db clang++ ~/dummy.cpp
 ```
 
 ### Configuration Options
 Option | Description
 ------ | -----------
+`SWAPPED_ARGS_BUILD_CLANG_PLUGIN` | Enables building the Clang plugin. Default: ON
 `SWAPPED_ARGS_BUILD_TESTS` | Enables building tests. Default: ON
-`SWAPPED_ARGS_BUILD_SHARED_LIBS` | Enables building a shared library instead of a static library. Default: ON
-`SWAPPED_ARGS_BUILD_PYTHON` | Enables building Python SWIG bindings. Default: OFF
 
 ### Automatic Downloads
 As part of the CMake configuration, the latest master branch of [googletest]
 (https://github.com/google/googletest) is downloaded and built if testing
-functionality is enabled. Additionally, [SWIG 4.0.1](http://www.swig.org/) is
-downloaded and built if other language support is enabled.
+functionality is enabled.
 
 ### Testing
 To run the C++ unit tests, ensure that `SWAPPED_ARGS_BUILD_TESTS` is not
