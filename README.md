@@ -36,11 +36,9 @@ cmake --build . --target check-all
 
 #### Notes
 
-If you wish to install Clang globally, omit`-DCMAKE_INSTALL_PREFIX` and `-DCMAKE_PREFIX_PATH`.
+If you don't have Ninja installed, you can use `-G "Unix Makefiles"` to generate makefiles instead and build using `make -j`.
 
-If you don't have Ninja installed, omit `-G Ninja` from the cmake invocations to generate makefiles instead. These are somewhat slower.
-
-There are build errors relating to binding ‘llvm::json::Object’ lvalue to ‘llvm::json::Object&&’ with older versions of gcc (e.g. 4.8). This can be worked around by using clang as the compiler via `-DCMAKE_C_COMPILER` and `-DCMAKE_CXX_COMPILER`.
+There is a linker warning about use of `tmpnam`. This API is only used by the testing infrastructure to generate a temporary statistics database, and is not used as part of the swapped argument checker API.
 
 ### Configuration Options
 Option | Description
