@@ -40,6 +40,12 @@ If you don't have Ninja installed, you can use `-G "Unix Makefiles"` to generate
 
 There is a linker warning about use of `tmpnam`. This API is only used by the testing infrastructure to generate a temporary statistics database, and is not used as part of the swapped argument checker API.
 
+#### Example
+
+```bash
+../../llvm-install/bin/scan-build -load-plugin lib/SwappedArgPlugin.so -enable-checker gt.SwappedArgs -analyzer-config gt.SwappedArgs:ModelPath=model.db clang++ ~/dummy.cpp
+```
+
 ### Configuration Options
 Option | Description
 ------ | -----------
