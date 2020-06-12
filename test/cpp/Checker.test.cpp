@@ -61,7 +61,6 @@ TEST(StatsSwapping, Basics) {
 
   CallSite Site;
   Site.callDecl.fullyQualifiedName = "BasicTest";
-  Site.callDecl.paramNames = {"cats", "dogs"};
   Site.positionalArgNames = {{"dogs"}, {"cats"}};
 
   std::vector<Result> Results = C.CheckSite(Site, Checker::Check::StatsBased);
@@ -97,8 +96,7 @@ TEST(StatsSwapping, DifferentMorphemeCases) {
 
   CallSite Site;
   Site.callDecl.fullyQualifiedName = "DifferentMorphemeCasesTest";
-  Site.callDecl.paramNames = {"Dogs", "Cats"};
-  Site.positionalArgNames = {{"cats"}, {"dogs"}};
+  Site.positionalArgNames = {{"Cats"}, {"Dogs"}};
 
   std::vector<Result> Results = C.CheckSite(Site, Checker::Check::StatsBased);
   EXPECT_EQ(Results.size(), 1);
