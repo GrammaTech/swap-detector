@@ -47,6 +47,26 @@ set(SWAPPED_ARG_INCLUDE_DIR
 )
 add_subdirectory(src)
 
+option(SWAPPED_ARGS_BUILD_PYTHON "Build python bindings." OFF)
+
+if(SWAPPED_ARGS_BUILD_PYTHON)
+  option(SWAPPED_ARGS_INSTALL_PYTHON "Install python bindings." ON)
+
+  add_custom_target(PythonExt ALL
+                    COMMAND python3 setup.py build_ext -I
+                            "${SWAPPED_ARG_INCLUDE_DIR}" -L
+                            "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}"
+                    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/python"
+                    DEPENDS SwappedArgChecker)
+  if(SWAPPED_ARGS_INSTALL_PYTHON)
+    install(
+      CODE
+      "execute_process(COMMAND python3 setup.py install
+       WORKING_DIRECTORY \"${CMAKE_CURRENT_SOURCE_DIR}/python\")"
+      )
+  endif()
+endif()
+
 option(SWAPPED_ARGS_BUILD_CLANG_PLUGIN "Build the clang plugin" ON)
 if (SWAPPED_ARGS_BUILD_CLANG_PLUGIN)
   add_subdirectory(clang_plugin)

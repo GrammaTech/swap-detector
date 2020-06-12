@@ -51,6 +51,8 @@ Option | Description
 ------ | -----------
 `SWAPPED_ARGS_BUILD_CLANG_PLUGIN` | Enables building the Clang plugin. Default: ON
 `SWAPPED_ARGS_BUILD_TESTS` | Enables building tests. Default: ON
+`SWAPPED_ARGS_BUILD_PYTHON` | Enables building the Python extension. Default: Off
+`SWAPPED_ARGS_INSTALL_PYTHON` | Enables installing the Python extension if it's been built. Default: Off
 
 ### Automatic Downloads
 As part of the CMake configuration, the latest master branch of [googletest]
