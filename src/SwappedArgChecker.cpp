@@ -578,8 +578,6 @@ std::vector<Result> Checker::CheckSite(const CallSite& site, Check whichCheck) {
     }
 
     // If that didn't find anything, run the statistics-based checker.
-    // FIXME: this generates a fake statistics database. It should be
-    // replaced with the real database.
     if ((whichCheck == Check::All || whichCheck == Check::StatsBased) &&
         Stats) {
       assert(Stats->valid() && "Expected valid statistics by this point");
