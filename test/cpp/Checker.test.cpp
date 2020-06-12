@@ -69,6 +69,23 @@ TEST(StatsSwapping, Basics) {
   EXPECT_EQ(Results[0].arg2, 2);
   EXPECT_THAT(Results[0].morphemes1, testing::UnorderedElementsAre("dogs"));
   EXPECT_THAT(Results[0].morphemes2, testing::UnorderedElementsAre("cats"));
+
+  // Ensure this swap is not found by the cover checker but is found by the
+  // stats based checker.
+  Site.callDecl.paramNames = {"horses", "emus"};
+  Results = C.CheckSite(Site, Checker::Check::CoverBased);
+  EXPECT_TRUE(Results.empty());
+
+  Results = C.CheckSite(Site, Checker::Check::StatsBased);
+  EXPECT_EQ(Results.size(), 1);
+  EXPECT_EQ(Results[0].arg1, 1);
+  EXPECT_EQ(Results[0].arg2, 2);
+  EXPECT_THAT(Results[0].morphemes1, testing::UnorderedElementsAre("dogs"));
+
+  // Ensure that this swap is not found by either check.
+  Site.positionalArgNames = {{"cats"}, {"dogs"}};
+  Results = C.CheckSite(Site, Checker::Check::All);
+  EXPECT_TRUE(Results.empty());
 }
 
 TEST(CoverSwapping, DifferentMorphemeCases) {
