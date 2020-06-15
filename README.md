@@ -63,3 +63,12 @@ functionality is enabled.
 To run the C++ unit tests, ensure that `SWAPPED_ARGS_BUILD_TESTS` is not
 disabled when configuring the cmake project. The `TestSwappedArgsCpp` executable
 will be generated on successful build and can be run to perform unit testing.
+
+#### Acknowledgements
+This material is based on research sponsored by the Department of Homeland
+Security (DHS) Office of Procurement Operations, S&T acquisition Division via
+contract number 70RSAT19C00000056. The views and conclusions contained herein
+are those of the authors and should not be interpreted as necessarily
+representing the official policies or endorsements, either expressed or
+implied, of the Department of Homeland Security.
+
