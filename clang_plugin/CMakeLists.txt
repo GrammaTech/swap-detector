@@ -22,7 +22,7 @@ add_definitions(${LLVM_DEFINITIONS})
 add_llvm_library(SwappedArgPlugin MODULE
                  ExprNames.cpp
                  Plugin.cpp
-                 SwappedArgChecker.cpp
+                 SwappedArgCheckerPlugin.cpp
                  PLUGIN_TOOL
                  clang
                  DEPENDS
