@@ -8,7 +8,7 @@ if (NOT CMAKE_VERSION VERSION_LESS "3.13")
 endif()
 
 project(
-  SwappedArgChecker
+  SwapDetector
   VERSION "0.0.1"
 )
 
@@ -57,7 +57,7 @@ if(SWAPPED_ARGS_BUILD_PYTHON)
                             "${SWAPPED_ARG_INCLUDE_DIR}" -L
                             "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}"
                     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/python"
-                    DEPENDS SwappedArgChecker)
+                    DEPENDS SwapDetector)
   if(SWAPPED_ARGS_INSTALL_PYTHON)
     install(
       CODE

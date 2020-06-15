@@ -1,4 +1,4 @@
-// RUN: %clang_analyze_cc1 -load %llvmshlibdir/SwappedArgPlugin%shlibext -analyzer-checker=gt.SwappedArgs -analyzer-config gt.SwappedArgs:ModelPath=%S/test.db -verify %s
+// RUN: %clang_analyze_cc1 -load %llvmshlibdir/SwapDetectorPlugin%shlibext -analyzer-checker=gt.SwapDetector -analyzer-config gt.SwapDetector:ModelPath=%S/test.db -verify %s
 // REQUIRES: plugins
 
 void func(int cats, int dogs);

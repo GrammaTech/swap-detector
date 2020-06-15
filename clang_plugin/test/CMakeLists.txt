@@ -5,7 +5,7 @@ configure_lit_site_cfg(
 
 add_lit_testsuite(check-all "Running the Swapped Arg regression tests"
   ${CMAKE_CURRENT_BINARY_DIR}
-  DEPENDS SwappedArgPlugin
+  DEPENDS SwapDetectorPlugin
   )
 
 # llvm-lit isn't installed as part of LLVM, even if you choose to install the

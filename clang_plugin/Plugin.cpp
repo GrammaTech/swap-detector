@@ -37,8 +37,8 @@ extern "C" const char clang_analyzerAPIVersionString[] =
     CLANG_ANALYZER_API_VERSION_STRING;
 
 static void initializeSwappedArgChecker(CheckerManager &mgr) {
-  StringRef modelPath = mgr.getAnalyzerOptions().getCheckerStringOption("gt.SwappedArgs",
-                                                                        "ModelPath");
+  StringRef modelPath = mgr.getAnalyzerOptions().getCheckerStringOption(
+      "gt.SwapDetector", "ModelPath");
   (void)mgr.registerChecker<SwappedArgChecker>(modelPath.str());
 }
 
@@ -46,10 +46,10 @@ static void initializeSwappedArgChecker(CheckerManager &mgr) {
 static bool alwaysRegister(const LangOptions &) { return true; }
 
 extern "C" void clang_registerCheckers(CheckerRegistry &registry) {
-  registry.addCheckerOption("string", "gt.SwappedArgs", "ModelPath", "", "",
+  registry.addCheckerOption("string", "gt.SwapDetector", "ModelPath", "", "",
                             "alpha");
   registry.addChecker(&initializeSwappedArgChecker, &alwaysRegister,
-                      "gt.SwappedArgs", "Check for swapped arguments", "",
+                      "gt.SwapDetector", "Check for swapped arguments", "",
                       false);
 }
 

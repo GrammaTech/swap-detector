@@ -1,4 +1,4 @@
-set(PROJECT_NAME SwappedArgChecker)
+set(PROJECT_NAME SwapDetector)
 
 # specify header files
 set(${PROJECT_NAME}_H
@@ -30,7 +30,7 @@ if(UNIX)
   target_link_libraries(${PROJECT_NAME} Threads::Threads)
 endif()
 
-set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER "SwappedArgChecker")
+set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER "SwapDetector")
 
 # Find our headers
 include_directories(${SWAPPED_ARG_INCLUDE_DIR})
