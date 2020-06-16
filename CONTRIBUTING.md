@@ -12,9 +12,10 @@ Please read the [Swap Detector Code of Conduct](CODE_OF_CONDUCT.md).
 
 - Text files must end with a trailing newline.
 
-- All tests should be able to run and pass.
-  This can be checked by running `make check` on your build directory
-    after running `cmake`.
+- All tests should be able to run and pass. There are two kinds of tests: unit
+  tests, which can be run by executing bin/TestSwappedArgsCpp and when building
+  the Clang plugin, lit tests, which can be run by executing `cmake --build .
+  --target check-all` on your cmake build directory after running `cmake`.
 
 ## C++ Code Requirements
 
