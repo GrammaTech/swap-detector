@@ -382,7 +382,7 @@ float Checker::morphemeConfidenceAtPosition(const CallSite& callSite,
       callSite.callDecl.fullyQualifiedName, pos, morph);
   float pos2 = stats.weightForMorphemeAtPos(
       callSite.callDecl.fullyQualifiedName, comparedToPos, morph);
-  return pos1 - pos2;
+  return pos1 / pos2;
 }
 
 float Checker::similarity(const std::string& morph1,
