@@ -101,13 +101,12 @@ static PyObject* Checker_Check(CheckerObject* self, PyObject* args,
   const char* callee = nullptr;
   PyObject* arguments = nullptr;
   PyObject* paramNames = nullptr;
-  PyObject* isVariadic = nullptr;
 
   static const char* kwlist[] = {"arguments", "callee", "parameters",
-                                 "is_variadic", nullptr};
+                                 nullptr};
   if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|zOO:check2",
                                    const_cast<char**>(kwlist), &arguments,
-                                   &callee, &paramNames, &isVariadic))
+                                   &callee, &paramNames))
     return nullptr;
 
   // Create the call site from all of the arguments passed into this
@@ -158,12 +157,6 @@ static PyObject* Checker_Check(CheckerObject* self, PyObject* args,
     if (PyErr_Occurred())
       return nullptr;
   }
-  if (isVariadic && isVariadic != Py_None) {
-    int value = PyObject_IsTrue(isVariadic);
-    if (value == -1)
-      return nullptr;
-    site.callDecl.isVariadicFunction = value;
-  }
   if (callee) {
     site.callDecl.fullyQualifiedName = callee;
   }
@@ -188,7 +181,6 @@ static PyMethodDef Checker_methods[] = {
      "passed.\n"
      ":param callee: The name of the function being called.\n"
      ":param parameters: The names for the formal parameters of the callee.\n"
-     ":param is_variadic: Is the function being called varargs?\n"
      ":returns: A list of dicts describing swaps (or an empty list if no "
      "swaps were found)."},
     {nullptr}};
