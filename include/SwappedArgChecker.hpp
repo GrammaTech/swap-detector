@@ -74,12 +74,14 @@ public:
 
 class ParameterNameBasedScoreCard : public ScoreCard {
   float Score;
+  bool WasStatsCheckerRun;
 
 public:
-  explicit ParameterNameBasedScoreCard(float score)
-      : Score(score) {}
+  explicit ParameterNameBasedScoreCard(float score, bool statsChecked)
+      : Score(score), WasStatsCheckerRun(statsChecked) {}
   CheckerKind kind() const override { return ParameterNameBased; }
   float score() const override { return Score; }
+  bool wasStatsCheckerRun() const { return WasStatsCheckerRun; }
 };
 
 class UsageStatisticsBasedScoreCard : public ScoreCard {
