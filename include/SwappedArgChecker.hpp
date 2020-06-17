@@ -81,7 +81,7 @@ public:
       : Score(score), StatsVettedScore(statsVettedScore) {}
   CheckerKind kind() const override { return ParameterNameBased; }
   float score() const override { return Score; }
-  bool wasStatsCheckerRun() const { return StatsVettedScore.has_value(); }
+  bool vettedWithStats() const { return StatsVettedScore.has_value(); }
   float statsVettedScore() const { return *StatsVettedScore; }
 };
 
