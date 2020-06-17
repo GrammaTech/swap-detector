@@ -165,14 +165,6 @@ pairwise_combinations(size_t totalCount) {
   return ret;
 }
 
-void Checker::print(const MorphemeSet& m, bool isArg) {
-  std::cout << (isArg ? "argument" : "parameter") << " MorphemeSet ("
-            << m.Position << "): ";
-  std::copy(m.Morphemes.begin(), m.Morphemes.end(),
-            std::experimental::make_ostream_joiner(std::cout, ", "));
-  std::cout << std::endl;
-}
-
 // Returns true if the checker reported any issues; false otherwise.
 std::optional<Result> Checker::checkForCoverBasedSwap(
     const std::pair<MorphemeSet, MorphemeSet>& params,
@@ -256,15 +248,11 @@ std::optional<Result> Checker::checkForCoverBasedSwap(
   float psi_i = mm_ai_pj / (mm_aj_pj + 0.01f),
         psi_j = mm_aj_pi / (mm_ai_pi + 0.01f);
   float worst_psi = std::min(psi_i, psi_j);
-  // TODO: When adding the stats-based checker, this should become non-const
-  // and be set to true if we attempted to run the stats-based checker.
-  const bool verified_with_stats = false;
 
   Result r;
   r.arg1 = args.first.Position + 1;
   r.arg2 = args.second.Position + 1;
-  r.score = std::make_unique<ParameterNameBasedScoreCard>(worst_psi,
-                                                          verified_with_stats);
+  r.score = std::make_unique<ParameterNameBasedScoreCard>(worst_psi);
   r.morphemes1 = uniqueMorphsArg1;
   r.morphemes2 = uniqueMorphsArg2;
 #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ == 7

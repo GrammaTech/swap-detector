@@ -16,16 +16,12 @@
 #ifndef GT_SWAPPED_ARG_CHECKER_H
 #define GT_SWAPPED_ARG_CHECKER_H
 
-#include "Compiler.hpp"
-
 #include <initializer_list>
-#include <map>
 #include <memory>
 #include <optional>
 #include <set>
 #include <string>
 #include <tuple>
-#include <variant>
 #include <vector>
 
 struct sqlite3;
@@ -42,8 +38,6 @@ public:
 
   // The names of the formal parameters from the callee.
   std::optional<std::vector<std::string>> paramNames;
-
-  std::optional<bool> isVariadicFunction;
 };
 
 // A single call-site to check for swapped argument errors.
@@ -79,14 +73,12 @@ public:
 
 class ParameterNameBasedScoreCard : public ScoreCard {
   float Score;
-  bool WasStatsCheckerRun;
 
 public:
-  explicit ParameterNameBasedScoreCard(float score, bool statsChecked)
-      : Score(score), WasStatsCheckerRun(statsChecked) {}
+  explicit ParameterNameBasedScoreCard(float score)
+      : Score(score) {}
   CheckerKind kind() const override { return ParameterNameBased; }
   float score() const override { return Score; }
-  bool wasStatsCheckerRun() const { return WasStatsCheckerRun; }
 };
 
 class UsageStatisticsBasedScoreCard : public ScoreCard {
@@ -121,7 +113,7 @@ public:
   std::unique_ptr<ScoreCard> score;
 };
 
-struct SWAPPED_ARG_EXPORT CheckerConfiguration {
+struct CheckerConfiguration {
   // Filesystem-native path to the model database.
   std::string ModelPath;
   // Comparison values used after calculating the match liklihood for either
@@ -137,7 +129,7 @@ struct SWAPPED_ARG_EXPORT CheckerConfiguration {
 };
 
 
-class SWAPPED_ARG_EXPORT Checker {
+class Checker {
   CheckerConfiguration Opts;
   // Note: this is a pointer because it's an incomplete type, but not a
   // unique_ptr because that would require the type to be complete for sizeof
@@ -172,9 +164,6 @@ class SWAPPED_ARG_EXPORT Checker {
       return std::nullopt;
     return site.positionalArgNames[pos].back();
   }
-
-  // TODO: remove this debugging utility when done.
-  void print(const MorphemeSet& m, bool isArg);
 
   std::optional<Result>
   checkForCoverBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
