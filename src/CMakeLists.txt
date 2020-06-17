@@ -27,6 +27,8 @@ if(UNIX)
   set(THREAD_PREFER_PTHREAD_FLAG ON)
   find_package(Threads REQUIRED)
   target_link_libraries(${PROJECT_NAME} Threads::Threads)
+elseif (MSVC)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)
 endif()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER "SwapDetector")
