@@ -16,6 +16,7 @@
 #ifndef GT_SWAPPED_ARG_CHECKER_H
 #define GT_SWAPPED_ARG_CHECKER_H
 
+#include <algorithm>
 #include <initializer_list>
 #include <memory>
 #include <optional>
