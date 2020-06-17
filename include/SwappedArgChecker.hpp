@@ -175,7 +175,7 @@ class Checker {
   std::optional<Result>
   checkForCoverBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
                          const std::pair<MorphemeSet, MorphemeSet>& args,
-                         const CallSite& callSite, Statistics* stats);
+                         const CallSite& callSite);
 
   float anyAreSynonyms(const std::string& morpheme,
                        const std::set<std::string>& potentialSynonyms) const;
@@ -205,14 +205,13 @@ class Checker {
   std::optional<Result>
   checkForStatisticsBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
                               const std::pair<MorphemeSet, MorphemeSet>& args,
-                              const CallSite& callSite, Statistics& stats);
+                              const CallSite& callSite);
   // Determines the confidence of how much more common it is to see the given
   // morpheme at the given position compared to another position. Returns values
   // in the range 0.0f (for no confidence) to 1.0 (for highest confidence).
   float morphemeConfidenceAtPosition(const CallSite& callSite,
                                      const std::string& morph, size_t pos,
-                                     size_t comparedToPos,
-                                     Statistics& stats) const;
+                                     size_t comparedToPos) const;
 
   // Determines how "similar" two morphemes are, including abbreviations and
   // synonyms. Returns a value between [0, 1).
@@ -221,8 +220,8 @@ class Checker {
   // Determines the fitness of a potential swap of the given morpheme when
   // compared to the other morphemes used at that position in other function
   // calls. Returns a value between [0, 1).
-  float fit(const std::string& morph, const CallSite& site, size_t argPos,
-            Statistics& stats) const;
+  float fit(const std::string& morph, const CallSite& site,
+            size_t argPos) const;
 
 public:
   Checker() = default;

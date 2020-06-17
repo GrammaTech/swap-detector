@@ -222,8 +222,7 @@ pairwise_combinations(size_t totalCount) {
 // Returns a Result if the checker reported any issues; nullopt otherwise.
 std::optional<Result> Checker::checkForCoverBasedSwap(
     const std::pair<MorphemeSet, MorphemeSet>& params,
-    const std::pair<MorphemeSet, MorphemeSet>& args, const CallSite& site,
-    Statistics* stats) {
+    const std::pair<MorphemeSet, MorphemeSet>& args, const CallSite& site) {
   // We have already verified that the morpheme sets are not empty, but we
   // also need to verify that the number of morphemes is the same between each
   // parameter and argument.
@@ -308,7 +307,7 @@ std::optional<Result> Checker::checkForCoverBasedSwap(
   // no diagnostic will be reported.
   std::optional<float> stats_score;
 
-  if (stats) {
+  if (Stats) {
     // If the stats database is available then it can be used to determine if
     // any of the unique argument morphemes are more common at position 1 than
     // at position 2 for both sets of unique argument morphemes. If they are
@@ -316,19 +315,17 @@ std::optional<Result> Checker::checkForCoverBasedSwap(
     // score on the score card. This is similar to what's done by the stats-
     // based checker, but in this case we check how much more common the
     // morpheme is where it is (opposite to the stats checker).
-    assert(stats->valid() && "Expected the stats to be valid");
+    assert(Stats->valid() && "Expected the stats to be valid");
     std::for_each(uniqueMorphsArg1.begin(), uniqueMorphsArg1.end(),
                   [&](const std::string& morph) {
                     float val = morphemeConfidenceAtPosition(
-                        site, morph, args.first.Position, args.second.Position,
-                        *stats);
+                        site, morph, args.first.Position, args.second.Position);
                     *stats_score = std::max(*stats_score, val);
                   });
     std::for_each(uniqueMorphsArg2.begin(), uniqueMorphsArg2.end(),
                   [&](const std::string& morph) {
                     float val = morphemeConfidenceAtPosition(
-                        site, morph, args.second.Position, args.first.Position,
-                        *stats);
+                        site, morph, args.second.Position, args.first.Position);
                     *stats_score = std::max(*stats_score, val);
                   });
 
@@ -408,11 +405,12 @@ Checker::morphemeSetDifference(const MorphemeSet& one,
 
 float Checker::morphemeConfidenceAtPosition(const CallSite& callSite,
                                             const std::string& morph,
-                                            size_t pos, size_t comparedToPos,
-                                            Statistics& stats) const {
-  float pos1 = stats.weightForMorphemeAtPos(
+                                            size_t pos,
+                                            size_t comparedToPos) const {
+  assert(Stats && Stats->valid() && "Expected to have valid statistics");
+  float pos1 = Stats->weightForMorphemeAtPos(
       callSite.callDecl.fullyQualifiedName, pos, morph);
-  float pos2 = stats.weightForMorphemeAtPos(
+  float pos2 = Stats->weightForMorphemeAtPos(
       callSite.callDecl.fullyQualifiedName, comparedToPos, morph);
 
   return pos1 / pos2;
@@ -425,10 +423,11 @@ float Checker::similarity(const std::string& morph1,
 }
 
 float Checker::fit(const std::string& morph, const CallSite& site,
-                   size_t argPos, Statistics& stats) const {
+                   size_t argPos) const {
+  assert(Stats && Stats->valid() && "Expected to have valid statistics");
   std::string funcName = site.callDecl.fullyQualifiedName;
   std::vector<std::pair<std::string, float>> morphsAndWeightsAtPos;
-  if (!stats.morphemesAndWeightsAtPos(funcName, argPos, morphsAndWeightsAtPos))
+  if (!Stats->morphemesAndWeightsAtPos(funcName, argPos, morphsAndWeightsAtPos))
     return 0.0f;
 
   float ret = 0.0f;
@@ -440,8 +439,7 @@ float Checker::fit(const std::string& morph, const CallSite& site,
 
 std::optional<Result> Checker::checkForStatisticsBasedSwap(
     const std::pair<MorphemeSet, MorphemeSet>& params,
-    const std::pair<MorphemeSet, MorphemeSet>& args, const CallSite& callSite,
-    Statistics& stats) {
+    const std::pair<MorphemeSet, MorphemeSet>& args, const CallSite& callSite) {
   MorphemeSet uniqArgMorphs1 = morphemeSetDifference(args.first, args.second),
               uniqArgMorphs2 = morphemeSetDifference(args.second, args.first);
 
@@ -453,10 +451,10 @@ std::optional<Result> Checker::checkForStatisticsBasedSwap(
       // move on.
       float psi1 = morphemeConfidenceAtPosition(callSite, argMorph1,
                                                 uniqArgMorphs2.Position,
-                                                uniqArgMorphs1.Position, stats),
+                                                uniqArgMorphs1.Position),
             psi2 = morphemeConfidenceAtPosition(callSite, argMorph2,
                                                 uniqArgMorphs1.Position,
-                                                uniqArgMorphs2.Position, stats);
+                                                uniqArgMorphs2.Position);
       if (psi1 <= Opts.StatsSwappedMorphemeThreshold ||
           psi2 <= Opts.StatsSwappedMorphemeThreshold) {
         continue;
@@ -477,8 +475,8 @@ std::optional<Result> Checker::checkForStatisticsBasedSwap(
 
       // Determine the fitness of the first arg morpheme compared to the second
       // and vice versa to see if it exceeds a threshold.
-      float fit1 = fit(argMorph1, callSite, args.second.Position, stats),
-            fit2 = fit(argMorph2, callSite, args.first.Position, stats);
+      float fit1 = fit(argMorph1, callSite, args.second.Position),
+            fit2 = fit(argMorph2, callSite, args.first.Position);
       if (fit1 > Opts.StatsSwappedFitnessThreshold &&
           fit2 > Opts.StatsSwappedFitnessThreshold) {
         // Return the statistical swap result.
@@ -603,7 +601,7 @@ std::vector<Result> Checker::CheckSite(const CallSite& site, Check whichCheck) {
       if (whichCheck == Check::All || whichCheck == Check::CoverBased) {
         if (std::optional<Result> coverWarning = checkForCoverBasedSwap(
                 std::make_pair(param1Morphemes, param2Morphemes),
-                std::make_pair(arg1Morphemes, arg2Morphemes), site, Stats)) {
+                std::make_pair(arg1Morphemes, arg2Morphemes), site)) {
           results.push_back(std::move(*coverWarning));
           continue;
         }
@@ -617,7 +615,7 @@ std::vector<Result> Checker::CheckSite(const CallSite& site, Check whichCheck) {
 
       if (std::optional<Result> statsWarning = checkForStatisticsBasedSwap(
               std::make_pair(param1Morphemes, param2Morphemes),
-              std::make_pair(arg1Morphemes, arg2Morphemes), site, *Stats)) {
+              std::make_pair(arg1Morphemes, arg2Morphemes), site)) {
         results.push_back(std::move(*statsWarning));
       }
     }
