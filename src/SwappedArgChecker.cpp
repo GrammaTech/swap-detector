@@ -382,6 +382,13 @@ float Checker::morphemeConfidenceAtPosition(const CallSite& callSite,
       callSite.callDecl.fullyQualifiedName, pos, morph);
   float pos2 = stats.weightForMorphemeAtPos(
       callSite.callDecl.fullyQualifiedName, comparedToPos, morph);
+
+  // If there's no confidence in either position, then return 0, but if there
+  // is confidence at pos1 but not at pos2, then return 1. Otherwise, return
+  // the ratio pos1 to pos2.
+  if (pos2 == 0.0f) {
+    return pos1 != 0.0f ? 1.0f : 0.0f;
+  }
   return pos1 / pos2;
 }
 

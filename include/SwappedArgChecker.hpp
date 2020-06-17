@@ -204,7 +204,7 @@ class Checker {
                               const CallSite& callSite, Statistics& stats);
   // Determines the confidence of how much more common it is to see the given
   // morpheme at the given position compared to another position. Returns values
-  // in the range 0.0f (for no confidence) to infinity (for highest confidence).
+  // in the range 0.0f (for no confidence) to 1.0 (for highest confidence).
   float morphemeConfidenceAtPosition(const CallSite& callSite,
                                      const std::string& morph, size_t pos,
                                      size_t comparedToPos,
