@@ -309,12 +309,14 @@ std::optional<Result> Checker::checkForCoverBasedSwap(
 
   if (Stats) {
     // If the stats database is available then it can be used to determine if
-    // any of the unique argument morphemes are more common at position 1 than
-    // at position 2 for both sets of unique argument morphemes. If they are
-    // sufficiently more common, then we can bail out, otherwise we can note the
-    // score on the score card. This is similar to what's done by the stats-
-    // based checker, but in this case we check how much more common the
-    // morpheme is where it is (opposite to the stats checker).
+    // unique argument morphemes for argument 1 are more common at position 1
+    // than at position 2. Similarly, the unique argument morphemes for argument
+    // 2 are checked to see if they're more common at position 2 than position 1.
+    // If either argument is sufficiently more common, then we can bail out,
+    // otherwise we can note the score on the score card. This is similar to
+    // what's done by the stats-based checker, but in this case we check how
+    // much more common the morpheme is where it is (opposite to the stats
+    // checker).
     assert(Stats->valid() && "Expected the stats to be valid");
     std::for_each(uniqueMorphsArg1.begin(), uniqueMorphsArg1.end(),
                   [&](const std::string& morph) {
