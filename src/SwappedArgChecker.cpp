@@ -69,8 +69,9 @@ public:
   }
 
   // Finds how often the given morpheme is used at the specified position for a
-  // given function call. Returns 0.0f if the function does not exist or the
-  // argument position is invalid.
+  // given function call. Returns 1.0f if the function does not exist or the
+  // argument position is invalid because this is the lowest weight plausible
+  // for a morpheme position.
   float weightForMorphemeAtPos(const std::string& funcName, size_t argPos,
                                const std::string& morpheme) {
     assert(valid() && "no valid database loaded");
@@ -106,7 +107,7 @@ public:
         break;
       }
     }
-    return 0.0f;
+    return 1.0f;
   }
 
   // Finds all morphemes for the given function call and argument position, as
@@ -383,12 +384,6 @@ float Checker::morphemeConfidenceAtPosition(const CallSite& callSite,
   float pos2 = stats.weightForMorphemeAtPos(
       callSite.callDecl.fullyQualifiedName, comparedToPos, morph);
 
-  // If there's no confidence in either position, then return 0, but if there
-  // is confidence at pos1 but not at pos2, then return 1. Otherwise, return
-  // the ratio pos1 to pos2.
-  if (pos2 == 0.0f) {
-    return pos1 != 0.0f ? 1.0f : 0.0f;
-  }
   return pos1 / pos2;
 }
 
