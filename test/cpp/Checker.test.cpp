@@ -262,3 +262,23 @@ TEST(CoverSwapping, NumericSuffixes) {
     testing::UnorderedElementsAre("horses2"));
   */
 }
+
+TEST(CoverSwapping, WithStats) {
+  // This is an example of a test where the cover checker would report a bug
+  // because the argument and parameter names are swapped, but the stats
+  // database is used to simulate that arguments typically are passed in reverse
+  // order and so no diagnostic is emitted.
+  WithStatsDatabase Config(
+      {{"CoverWithStatsTest", 0, "dogs", 1.0f},
+       {"CoverWithStatsTest", 1, "cats", 1.0f}});
+  Checker C(Config);
+
+  CallSite Site;
+  Site.callDecl.fullyQualifiedName = "CoverWithStatsTest";
+  Site.callDecl.paramNames = {"cats", "dogs"};
+  Site.positionalArgNames = {{"dogs"}, {"cats"}};
+
+  std::vector<Result> Results = C.CheckSite(Site, Checker::Check::CoverBased);
+  EXPECT_EQ(Results.size(), 0);
+}
+

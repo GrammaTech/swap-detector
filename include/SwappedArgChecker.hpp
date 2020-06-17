@@ -74,14 +74,15 @@ public:
 
 class ParameterNameBasedScoreCard : public ScoreCard {
   float Score;
-  bool WasStatsCheckerRun;
+  std::optional<float> StatsVettedScore;
 
 public:
-  explicit ParameterNameBasedScoreCard(float score, bool statsChecked)
-      : Score(score), WasStatsCheckerRun(statsChecked) {}
+  explicit ParameterNameBasedScoreCard(float score, std::optional<float> statsVettedScore)
+      : Score(score), StatsVettedScore(statsVettedScore) {}
   CheckerKind kind() const override { return ParameterNameBased; }
   float score() const override { return Score; }
-  bool wasStatsCheckerRun() const { return WasStatsCheckerRun; }
+  bool wasStatsCheckerRun() const { return StatsVettedScore.has_value(); }
+  float statsVettedScore() const { return *StatsVettedScore; }
 };
 
 class UsageStatisticsBasedScoreCard : public ScoreCard {
@@ -171,7 +172,7 @@ class Checker {
   std::optional<Result>
   checkForCoverBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
                          const std::pair<MorphemeSet, MorphemeSet>& args,
-                         const CallSite& callSite);
+                         const CallSite& callSite, Statistics* stats);
 
   float anyAreSynonyms(const std::string& morpheme,
                        const std::set<std::string>& potentialSynonyms) const;

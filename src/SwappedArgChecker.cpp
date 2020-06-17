@@ -219,10 +219,11 @@ pairwise_combinations(size_t totalCount) {
   return ret;
 }
 
-// Returns true if the checker reported any issues; false otherwise.
+// Returns a Result if the checker reported any issues; nullopt otherwise.
 std::optional<Result> Checker::checkForCoverBasedSwap(
     const std::pair<MorphemeSet, MorphemeSet>& params,
-    const std::pair<MorphemeSet, MorphemeSet>& args, const CallSite& site) {
+    const std::pair<MorphemeSet, MorphemeSet>& args, const CallSite& site,
+    Statistics* stats) {
   // We have already verified that the morpheme sets are not empty, but we
   // also need to verify that the number of morphemes is the same between each
   // parameter and argument.
@@ -302,15 +303,40 @@ std::optional<Result> Checker::checkForCoverBasedSwap(
   float psi_i = mm_ai_pj / (mm_aj_pj + 0.01f),
         psi_j = mm_aj_pi / (mm_ai_pi + 0.01f);
   float worst_psi = std::min(psi_i, psi_j);
-  // TODO: When adding the stats-based checker, this should become non-const
-  // and be set to true if we attempted to run the stats-based checker.
-  const bool verified_with_stats = false;
+  std::optional<float> stats_score;
+
+  if (Stats) {
+    // If the stats database is available then it can be used to determine if
+    // any of the unique argument morphemes are more common at position 1 than
+    // at position 2 for both sets of unique argument morphemes. If they are
+    // sufficiently more common, then we can bail out, otherwise we can note the
+    // score on the score card. This is similar to what's done by the stats-
+    // based checker, but in this case we check how much more common the
+    // morpheme is where it is (opposite to the stats checker).
+    assert(Stats->valid() && "Expected the stats to be valid");
+    for (const std::string& argMorph1 : uniqueMorphsArg1) {
+      for (const std::string& argMorph2 : uniqueMorphsArg2) {
+        float conf1 = morphemeConfidenceAtPosition(site, argMorph1,
+                                                args.first.Position,
+                                                args.second.Position, *stats),
+              conf2 = morphemeConfidenceAtPosition(site, argMorph2,
+                                                args.second.Position,
+                                                args.first.Position, *stats);
+        // If the confidence is high that this is NOT a swap, then bail out.
+        if (conf1 > Opts.StatsSwappedMorphemeThreshold ||
+            conf2 > Opts.StatsSwappedMorphemeThreshold) {
+          return std::nullopt;
+        }
+        // Otherwise, note the score on the score card.
+        stats_score = std::min(stats_score.value_or(0.0f), conf1 / conf2);
+      }
+    }
+  }
 
   Result r;
   r.arg1 = args.first.Position + 1;
   r.arg2 = args.second.Position + 1;
-  r.score = std::make_unique<ParameterNameBasedScoreCard>(worst_psi,
-                                                          verified_with_stats);
+  r.score = std::make_unique<ParameterNameBasedScoreCard>(worst_psi, stats_score);
   r.morphemes1 = uniqueMorphsArg1;
   r.morphemes2 = uniqueMorphsArg2;
 #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ == 7
@@ -572,7 +598,7 @@ std::vector<Result> Checker::CheckSite(const CallSite& site, Check whichCheck) {
       if (whichCheck == Check::All || whichCheck == Check::CoverBased) {
         if (std::optional<Result> coverWarning = checkForCoverBasedSwap(
                 std::make_pair(param1Morphemes, param2Morphemes),
-                std::make_pair(arg1Morphemes, arg2Morphemes), site)) {
+                std::make_pair(arg1Morphemes, arg2Morphemes), site, Stats)) {
           results.push_back(std::move(*coverWarning));
           continue;
         }
