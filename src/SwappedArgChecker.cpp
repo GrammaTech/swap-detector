@@ -303,9 +303,12 @@ std::optional<Result> Checker::checkForCoverBasedSwap(
   float psi_i = mm_ai_pj / (mm_aj_pj + 0.01f),
         psi_j = mm_aj_pi / (mm_ai_pi + 0.01f);
   float worst_psi = std::min(psi_i, psi_j);
+  // If stats were enabled, this will hold the maximum confidence value found
+  // when doing stats vetting. If this value is above a given threshold, then
+  // no diagnostic will be reported.
   std::optional<float> stats_score;
 
-  if (Stats) {
+  if (stats) {
     // If the stats database is available then it can be used to determine if
     // any of the unique argument morphemes are more common at position 1 than
     // at position 2 for both sets of unique argument morphemes. If they are
@@ -313,23 +316,25 @@ std::optional<Result> Checker::checkForCoverBasedSwap(
     // score on the score card. This is similar to what's done by the stats-
     // based checker, but in this case we check how much more common the
     // morpheme is where it is (opposite to the stats checker).
-    assert(Stats->valid() && "Expected the stats to be valid");
-    for (const std::string& argMorph1 : uniqueMorphsArg1) {
-      for (const std::string& argMorph2 : uniqueMorphsArg2) {
-        float conf1 = morphemeConfidenceAtPosition(site, argMorph1,
-                                                args.first.Position,
-                                                args.second.Position, *stats),
-              conf2 = morphemeConfidenceAtPosition(site, argMorph2,
-                                                args.second.Position,
-                                                args.first.Position, *stats);
-        // If the confidence is high that this is NOT a swap, then bail out.
-        if (conf1 > Opts.StatsSwappedMorphemeThreshold ||
-            conf2 > Opts.StatsSwappedMorphemeThreshold) {
-          return std::nullopt;
-        }
-        // Otherwise, note the score on the score card.
-        stats_score = std::min(stats_score.value_or(0.0f), conf1 / conf2);
-      }
+    assert(stats->valid() && "Expected the stats to be valid");
+    std::for_each(uniqueMorphsArg1.begin(), uniqueMorphsArg1.end(),
+                  [&](const std::string& morph) {
+                    float val = morphemeConfidenceAtPosition(
+                        site, morph, args.first.Position, args.second.Position,
+                        *stats);
+                    *stats_score = std::max(*stats_score, val);
+                  });
+    std::for_each(uniqueMorphsArg2.begin(), uniqueMorphsArg2.end(),
+                  [&](const std::string& morph) {
+                    float val = morphemeConfidenceAtPosition(
+                        site, morph, args.second.Position, args.first.Position,
+                        *stats);
+                    *stats_score = std::max(*stats_score, val);
+                  });
+
+    // If the confidence is high that this is NOT a swap, then bail out.
+    if (*stats_score > Opts.CoverSwappedStatsVettingThreshold) {
+      return std::nullopt;
     }
   }
 

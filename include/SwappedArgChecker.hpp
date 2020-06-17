@@ -130,6 +130,9 @@ struct CheckerConfiguration {
   // Comparison value used to determine whether a potential swap is
   // sufficiently fit or not.
   float StatsSwappedFitnessThreshold = 0.75f; // FIXME: made up number!!
+  // Comparison value used to determine whether a potential cover based swap
+  // should be suppressed due to stats vetting.
+  float CoverSwappedStatsVettingThreshold = 0.75f; // FIXME: made up number!!
 };
 
 
