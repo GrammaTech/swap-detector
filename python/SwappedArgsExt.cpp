@@ -104,7 +104,7 @@ static PyObject* Checker_Check(CheckerObject* self, PyObject* args,
 
   static const char* kwlist[] = {"arguments", "callee", "parameters",
                                  nullptr};
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|zOO:check2",
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|zO:check2",
                                    const_cast<char**>(kwlist), &arguments,
                                    &callee, &paramNames))
     return nullptr;
