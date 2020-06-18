@@ -26,33 +26,33 @@ Please read the [Swap Detector Code of Conduct](CODE_OF_CONDUCT.md).
 
   - Code should generally allow for thread safety.
     - No static variables.
-      - No globals
-        - Free functions should not maintain state.
-          - Use caution when using iterators to guard against invalidation.
+    - No globals
+    - Free functions should not maintain state.
+    - Use caution when using iterators to guard against invalidation.
 
-          - Maintain const-correctness.
+  - Maintain const-correctness.
 
-          - Use UpperCamelCase for type names.
+  - Use UpperCamelCase for type names.
 
-          - Use UpperCamelCase for enum members.
+  - Use UpperCamelCase for enum members.
 
-          - Use lowerCamelCase for variable and class members.
+  - Use lowerCamelCase for variable and class members.
 
-          - Use lowerCamelCase or lower_snake_case for function and method names.
+  - Use lowerCamelCase or lower\_snake\_case for function and method names.
 
-          - Do not use `using namespace std`
+  - Do not use `using namespace std`
 
-          - Use `auto` when the deduced type is explicitly spelled out in the
-            initialization or if the deduced type is an abstract type
-              alias.  Always explicitly specify type qualifiers, pointers, and
-                references.  E.g.,
-                  ```cpp
-                    const auto *Ptr = dynamic_cast<const Foo *>(SomePtr);
-                      auto Val = static_cast<unsigned>(SomeValue);
-                        for (auto Iter = SomeContainer.begin(), End = SomeContainer.end(); Iter != End; ++Iter) {}
-                          ```
+  - Use `auto` when the deduced type is explicitly spelled out in the
+    initialization or if the deduced type is an abstract type
+    alias.  Always explicitly specify type qualifiers, pointers, and
+    references.  E.g.,
+    ```cpp
+      const auto *Ptr = dynamic_cast<const Foo *>(SomePtr);
+      auto Val = static_cast<unsigned>(SomeValue);
+      for (auto Iter = SomeContainer.begin(), End = SomeContainer.end(); Iter != End; ++Iter) {}
+    ```
 
-                          - Use `auto` to make code more readable, but prefer `auto &` or `const auto *`
+  - Use `auto` to make code more readable, but prefer `auto &` or `const auto *`
                             to explicitly spell out qualifiers and pointers or references.
 
 ### Testing Development
