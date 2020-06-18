@@ -5,7 +5,6 @@ set(${PROJECT_NAME}_H
     "${SWAPPED_ARG_INCLUDE_DIR}/IdentifierSplitting.hpp"
     "${SWAPPED_ARG_INCLUDE_DIR}/SwappedArgChecker.hpp"
     "sqlite3.h"
-    "sqlite3ext.h"
 )
 
 # specify source files

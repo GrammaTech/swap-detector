@@ -44,7 +44,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   endif()
 endif()
 
-if(UNIX AND NOT BUILD_SHARED_LIBS)
+if(UNIX)
   # Find only static libraries
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   add_compile_options(-static)
@@ -61,7 +61,6 @@ set(SWAPPED_ARG_INCLUDE_DIR
 add_subdirectory(src)
 
 option(SWAPPED_ARGS_BUILD_PYTHON "Build python bindings." OFF)
-
 if(SWAPPED_ARGS_BUILD_PYTHON)
   option(SWAPPED_ARGS_INSTALL_PYTHON "Install python bindings." ON)
 
