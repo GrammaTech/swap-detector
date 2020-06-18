@@ -322,13 +322,13 @@ std::optional<Result> Checker::checkForCoverBasedSwap(
                   [&](const std::string& morph) {
                     float val = morphemeConfidenceAtPosition(
                         site, morph, args.first.Position, args.second.Position);
-                    *stats_score = std::max(*stats_score, val);
+                    *stats_score = std::max(stats_score.value_or(0.0f), val);
                   });
     std::for_each(uniqueMorphsArg2.begin(), uniqueMorphsArg2.end(),
                   [&](const std::string& morph) {
                     float val = morphemeConfidenceAtPosition(
                         site, morph, args.second.Position, args.first.Position);
-                    *stats_score = std::max(*stats_score, val);
+                    *stats_score = std::max(stats_score.value_or(0.0f), val);
                   });
 
     // If the confidence is high that this is NOT a swap, then bail out.
