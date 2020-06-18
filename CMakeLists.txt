@@ -7,9 +7,22 @@ if (NOT CMAKE_VERSION VERSION_LESS "3.13")
   cmake_policy(SET CMP0077 NEW)
 endif()
 
+# The version.txt file is the official record of the version number. We use the
+# contents of that file to set the project version for use in other CMake files.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/version.txt" ver)
+
+string(REGEX MATCH "VERSION_MAJOR ([0-9]*)" _ ${ver})
+set(SWAPPED_ARGS_MAJOR_VERSION ${CMAKE_MATCH_1})
+
+string(REGEX MATCH "VERSION_MINOR ([0-9]*)" _ ${ver})
+set(SWAPPED_ARGS_MINOR_VERSION ${CMAKE_MATCH_1})
+
+string(REGEX MATCH "VERSION_PATCH ([0-9]*)" _ ${ver})
+set(SWAPPED_ARGS_PATCH_VERSION ${CMAKE_MATCH_1})
+
 project(
   SwapDetector
-  VERSION "0.0.1"
+  VERSION "${SWAPPED_ARGS_MAJOR_VERSION}.${SWAPPED_ARGS_MINOR_VERSION}.${SWAPPED_ARGS_PATCH_VERSION}"
 )
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
