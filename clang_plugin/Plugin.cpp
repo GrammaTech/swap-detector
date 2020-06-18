@@ -1,3 +1,19 @@
+//===- Plugin.cpp -----------------------------------------------*- C++ -*-===//
+//
+//  Copyright (C) 2020 GrammaTech, Inc.
+//
+//  This code is licensed under the MIT license. See the LICENSE file in the
+//  project root for license terms.
+//
+// This material is based on research sponsored by the Department of Homeland
+// Security (DHS) Office of Procurement Operations, S&T acquisition Division via
+// contract number 70RSAT19C00000056. The views and conclusions contained herein
+// are those of the authors and should not be interpreted as necessarily
+// representing the official policies or endorsements, either expressed or
+// implied, of the Department of Homeland Security.
+//
+//===----------------------------------------------------------------------===//
+
 /*
  * Extracts information about API usage.
  *
@@ -13,7 +29,7 @@
  *   Horwitz, and Sagiv
  */
 
-#include "SwappedArgChecker.h"
+#include "SwappedArgCheckerPlugin.hpp"
 #include <clang/StaticAnalyzer/Core/AnalyzerOptions.h>
 #include <clang/StaticAnalyzer/Frontend/CheckerRegistry.h>
 
@@ -21,8 +37,8 @@ extern "C" const char clang_analyzerAPIVersionString[] =
     CLANG_ANALYZER_API_VERSION_STRING;
 
 static void initializeSwappedArgChecker(CheckerManager &mgr) {
-  StringRef modelPath = mgr.getAnalyzerOptions().getCheckerStringOption("gt.SwappedArgs",
-                                                                        "ModelPath");
+  StringRef modelPath = mgr.getAnalyzerOptions().getCheckerStringOption(
+      "gt.SwapDetector", "ModelPath");
   (void)mgr.registerChecker<SwappedArgChecker>(modelPath.str());
 }
 
@@ -30,10 +46,10 @@ static void initializeSwappedArgChecker(CheckerManager &mgr) {
 static bool alwaysRegister(const LangOptions &) { return true; }
 
 extern "C" void clang_registerCheckers(CheckerRegistry &registry) {
-  registry.addCheckerOption("string", "gt.SwappedArgs", "ModelPath", "", "",
+  registry.addCheckerOption("string", "gt.SwapDetector", "ModelPath", "", "",
                             "alpha");
   registry.addChecker(&initializeSwappedArgChecker, &alwaysRegister,
-                      "gt.SwappedArgs", "Check for swapped arguments", "",
+                      "gt.SwapDetector", "Check for swapped arguments", "",
                       false);
 }
 

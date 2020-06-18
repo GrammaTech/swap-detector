@@ -19,15 +19,15 @@ include_directories(
 
 add_definitions(${LLVM_DEFINITIONS})
 
-add_llvm_library(SwappedArgPlugin MODULE
+add_llvm_library(SwapDetectorPlugin MODULE
                  ExprNames.cpp
                  Plugin.cpp
-                 SwappedArgChecker.cpp
+                 SwappedArgCheckerPlugin.cpp
                  PLUGIN_TOOL
                  clang
                  DEPENDS
-                 SwappedArgChecker
+                 SwapDetector
                  LINK_LIBS
-                 SwappedArgChecker)
+                 SwapDetector)
 
 add_subdirectory(test)

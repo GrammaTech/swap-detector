@@ -1,4 +1,4 @@
-# swapped-arg-checker
+# Swap Detector
 
 Module that checks for swapped arguments in function calls.
 
@@ -30,7 +30,7 @@ export PATH=$PATH:$HOME/.local/bin
 * Use cmake to build the plugin:
 ```bash
 mkdir build; cd build
-cmake -G Ninja -DLLVM_EXTERNAL_LIT=$(which lit) -DSWAPPED_ARGS_BUILD_CLANG_PLUGIN=ON -DCMAKE_PREFIX_PATH=$PWD/../../llvm-install/lib/cmake ~/path/to/swapped-arg-checker
+cmake -G Ninja -DLLVM_EXTERNAL_LIT=$(which lit) -DSWAPPED_ARGS_BUILD_CLANG_PLUGIN=ON -DCMAKE_PREFIX_PATH=$PWD/../../llvm-install/lib/cmake ~/path/to/swap-detector
 cmake --build . --target check-all
 ```
 
@@ -43,7 +43,7 @@ There is a linker warning about use of `tmpnam`. This API is only used by the te
 #### Example
 
 ```bash
-../../llvm-install/bin/scan-build -load-plugin lib/SwappedArgPlugin.so -enable-checker gt.SwappedArgs -analyzer-config gt.SwappedArgs:ModelPath=model.db clang++ ~/dummy.cpp
+../../llvm-install/bin/scan-build -load-plugin lib/SwapDetectorPlugin.so -enable-checker gt.SwapDetector -analyzer-config gt.SwapDetector:ModelPath=model.db clang++ ~/dummy.cpp
 ```
 
 ### Configuration Options
@@ -63,3 +63,12 @@ functionality is enabled.
 To run the C++ unit tests, ensure that `SWAPPED_ARGS_BUILD_TESTS` is not
 disabled when configuring the cmake project. The `TestSwappedArgsCpp` executable
 will be generated on successful build and can be run to perform unit testing.
+
+#### Acknowledgements
+This material is based on research sponsored by the Department of Homeland
+Security (DHS) Office of Procurement Operations, S&T acquisition Division via
+contract number 70RSAT19C00000056. The views and conclusions contained herein
+are those of the authors and should not be interpreted as necessarily
+representing the official policies or endorsements, either expressed or
+implied, of the Department of Homeland Security.
+

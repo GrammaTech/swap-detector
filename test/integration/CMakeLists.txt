@@ -11,7 +11,7 @@ add_executable(${PROJECT_NAME} ${${PROJECT_NAME}_H} ${${PROJECT_NAME}_SRC})
 set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER "test/integration")
 
 target_link_libraries(
-  ${PROJECT_NAME} ${SYSLIBS} SwappedArgChecker
+  ${PROJECT_NAME} ${SYSLIBS} SwapDetector
 )
 
 set(PY_SOURCES
