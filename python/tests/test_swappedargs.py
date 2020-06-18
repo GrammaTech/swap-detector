@@ -26,8 +26,7 @@ def test_multi_results():
     checker = swappedargs.Checker()
     results = checker.check_call(callee='bar',
                                  parameters=['hi', 'lo', 'foo', 'bar'],
-                                 arguments=['lo', 'hi', 'bar', 'foo'],
-                                 is_variadic=False)
+                                 arguments=['lo', 'hi', 'bar', 'foo'])
     assert len(results) == 2
     assert results[0]['arg1'] == 1
     assert results[0]['arg2'] == 2

@@ -165,14 +165,6 @@ pairwise_combinations(size_t totalCount) {
   return ret;
 }
 
-void Checker::print(const MorphemeSet& m, bool isArg) {
-  std::cout << (isArg ? "argument" : "parameter") << " MorphemeSet ("
-            << m.Position << "): ";
-  std::copy(m.Morphemes.begin(), m.Morphemes.end(),
-            std::experimental::make_ostream_joiner(std::cout, ", "));
-  std::cout << std::endl;
-}
-
 // Returns true if the checker reported any issues; false otherwise.
 std::optional<Result> Checker::checkForCoverBasedSwap(
     const std::pair<MorphemeSet, MorphemeSet>& params,
