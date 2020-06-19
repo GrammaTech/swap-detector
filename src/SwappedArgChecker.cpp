@@ -68,11 +68,11 @@ public:
   }
 
   // Finds how often the given morpheme is used at the specified position for a
-  // given function call. Returns 1.0f if the function does not exist or the
-  // argument position is invalid because this is the lowest weight plausible
-  // for a morpheme position.
-  float weightForMorphemeAtPos(const std::string& funcName, size_t argPos,
-                               const std::string& morpheme) {
+  // given function call. Returns nullopt if the function does not exist or the
+  // argument position is invalid.
+  std::optional<float> weightForMorphemeAtPos(const std::string& funcName,
+                                              size_t argPos,
+                                              const std::string& morpheme) {
     assert(valid() && "no valid database loaded");
 
     // Helper RAII structure which binds the query arguments to the query on
@@ -106,7 +106,7 @@ public:
         break;
       }
     }
-    return 1.0f;
+    return std::nullopt;
   }
 
   // Finds all morphemes for the given function call and argument position, as
@@ -317,21 +317,29 @@ std::optional<Result> Checker::checkForCoverBasedSwap(
     // much more common the morpheme is where it is (opposite to the stats
     // checker).
     assert(Stats->valid() && "Expected the stats to be valid");
-    std::for_each(uniqueMorphsArg1.begin(), uniqueMorphsArg1.end(),
-                  [&](const std::string& morph) {
-                    float val = morphemeConfidenceAtPosition(
-                        site, morph, args.first.Position, args.second.Position);
-                    *stats_score = std::max(stats_score.value_or(0.0f), val);
-                  });
-    std::for_each(uniqueMorphsArg2.begin(), uniqueMorphsArg2.end(),
-                  [&](const std::string& morph) {
-                    float val = morphemeConfidenceAtPosition(
-                        site, morph, args.second.Position, args.first.Position);
-                    *stats_score = std::max(stats_score.value_or(0.0f), val);
-                  });
+    std::for_each(
+        uniqueMorphsArg1.begin(), uniqueMorphsArg1.end(),
+        [&](const std::string& morph) {
+          if (auto val = morphemeConfidenceAtPosition(
+                  site, morph, args.first.Position, args.second.Position);
+              val) {
+            stats_score = std::max(stats_score.value_or(0.0f), *val);
+          }
+        });
+    std::for_each(
+        uniqueMorphsArg2.begin(), uniqueMorphsArg2.end(),
+        [&](const std::string& morph) {
+          if (auto val = morphemeConfidenceAtPosition(
+                  site, morph, args.second.Position, args.first.Position);
+              val) {
+            stats_score = std::max(stats_score.value_or(0.0f), *val);
+          }
+        });
 
-    // If the confidence is high that this is NOT a swap, then bail out.
-    if (*stats_score > Opts.CoverSwappedStatsVettingThreshold) {
+    // If the confidence is high that this is NOT a swap, then bail out, but
+    // only if we were able to calculate a statistical score. It's plausible
+    // that there is no statistical information for the function.
+    if (stats_score && *stats_score > Opts.CoverSwappedStatsVettingThreshold) {
       return std::nullopt;
     }
   }
@@ -404,17 +412,26 @@ Checker::morphemeSetDifference(const MorphemeSet& one,
   return ret;
 }
 
-float Checker::morphemeConfidenceAtPosition(const CallSite& callSite,
-                                            const std::string& morph,
-                                            size_t pos,
-                                            size_t comparedToPos) const {
+std::optional<float>
+Checker::morphemeConfidenceAtPosition(const CallSite& callSite,
+                                      const std::string& morph, size_t pos,
+                                      size_t comparedToPos) const {
   assert(Stats && Stats->valid() && "Expected to have valid statistics");
-  float pos1 = Stats->weightForMorphemeAtPos(
-      callSite.callDecl.fullyQualifiedName, pos, morph);
-  float pos2 = Stats->weightForMorphemeAtPos(
-      callSite.callDecl.fullyQualifiedName, comparedToPos, morph);
-
-  return pos1 / pos2;
+  auto pos1 = Stats->weightForMorphemeAtPos(
+           callSite.callDecl.fullyQualifiedName, pos, morph),
+       pos2 = Stats->weightForMorphemeAtPos(
+           callSite.callDecl.fullyQualifiedName, comparedToPos, morph);
+  // If pos1 exists but pos2 does not exist, that means the confidence at pos is
+  // high because the morpheme never appears at comparedToPos. If pos2 exists
+  // but pos1 does not, that means the confidence at pos is low because the
+  // morpheme never appears there.
+  if (pos1 && !pos2)
+    return 1.0f;
+  if (pos2 && !pos1)
+    return 0.0f;
+  if (pos1 && pos2)
+    return *pos1 / *pos2;
+  return std::nullopt;
 }
 
 float Checker::similarity(const std::string& morph1,
@@ -450,14 +467,14 @@ std::optional<Result> Checker::checkForStatisticsBasedSwap(
       // than position 1, and how much more common the second morpheme is at
       // position 1 than position 2. If they seem to not be commonly swapped,
       // move on.
-      float psi1 = morphemeConfidenceAtPosition(callSite, argMorph1,
-                                                uniqArgMorphs2.Position,
-                                                uniqArgMorphs1.Position),
-            psi2 = morphemeConfidenceAtPosition(callSite, argMorph2,
-                                                uniqArgMorphs1.Position,
-                                                uniqArgMorphs2.Position);
-      if (psi1 <= Opts.StatsSwappedMorphemeThreshold ||
-          psi2 <= Opts.StatsSwappedMorphemeThreshold) {
+      std::optional<float> psi1 = morphemeConfidenceAtPosition(
+                               callSite, argMorph1, uniqArgMorphs2.Position,
+                               uniqArgMorphs1.Position),
+                           psi2 = morphemeConfidenceAtPosition(
+                               callSite, argMorph2, uniqArgMorphs1.Position,
+                               uniqArgMorphs2.Position);
+      if (!psi1 || !psi2 || *psi1 <= Opts.StatsSwappedMorphemeThreshold ||
+          *psi2 <= Opts.StatsSwappedMorphemeThreshold) {
         continue;
       }
 
@@ -485,7 +502,7 @@ std::optional<Result> Checker::checkForStatisticsBasedSwap(
         r.arg1 = args.first.Position + 1;
         r.arg2 = args.second.Position + 1;
         r.score = std::make_unique<UsageStatisticsBasedScoreCard>(fit1, fit2,
-                                                                  psi1, psi2);
+                                                                  *psi1, *psi2);
         r.morphemes1 = uniqArgMorphs1.Morphemes;
         r.morphemes2 = uniqArgMorphs2.Morphemes;
 #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ == 7
