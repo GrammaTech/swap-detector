@@ -321,8 +321,7 @@ std::optional<Result> Checker::checkForCoverBasedSwap(
         uniqueMorphsArg1.begin(), uniqueMorphsArg1.end(),
         [&](const std::string& morph) {
           if (auto val = morphemeConfidenceAtPosition(
-                  site, morph, args.first.Position, args.second.Position);
-              val) {
+                  site, morph, args.first.Position, args.second.Position)) {
             stats_score = std::max(stats_score.value_or(0.0f), *val);
           }
         });
@@ -330,8 +329,7 @@ std::optional<Result> Checker::checkForCoverBasedSwap(
         uniqueMorphsArg2.begin(), uniqueMorphsArg2.end(),
         [&](const std::string& morph) {
           if (auto val = morphemeConfidenceAtPosition(
-                  site, morph, args.second.Position, args.first.Position);
-              val) {
+                  site, morph, args.second.Position, args.first.Position)) {
             stats_score = std::max(stats_score.value_or(0.0f), *val);
           }
         });
