@@ -29,6 +29,7 @@
  *   Horwitz, and Sagiv
  */
 
+#include "ExprNamesInspectionChecker.hpp"
 #include "SwappedArgCheckerPlugin.hpp"
 #include <clang/StaticAnalyzer/Core/AnalyzerOptions.h>
 #include <clang/StaticAnalyzer/Frontend/CheckerRegistry.h>
@@ -51,5 +52,7 @@ extern "C" void clang_registerCheckers(CheckerRegistry &registry) {
   registry.addChecker(&initializeSwappedArgChecker, &alwaysRegister,
                       "gt.SwapDetector", "Check for swapped arguments", "",
                       false);
+  registry.addChecker<ExprNamesInspectionChecker>(
+      "gt.ExprNames", "Print expr names for regression tests", "");
 }
 

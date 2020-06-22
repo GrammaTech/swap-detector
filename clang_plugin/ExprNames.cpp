@@ -1,4 +1,4 @@
-//===- ExprNamse.cpp --------------------------------------------*- C++ -*-===//
+//===- ExprNames.cpp --------------------------------------------*- C++ -*-===//
 //
 //  Copyright (C) 2020 GrammaTech, Inc.
 //
@@ -14,6 +14,7 @@
 //
 //===----------------------------------------------------------------------===//
 #include "ExprNames.hpp"
+#include <clang/Basic/SourceManager.h>
 #include <clang/Lex/Lexer.h>
 using namespace clang;
 
@@ -57,14 +58,15 @@ std::string exprName(const Expr *CE, const Expr *expr, const SourceManager &SM,
       expandedRange.setEnd(SM.getExpansionLoc(expandedRange.getEnd()));
       if (expandedRange.getBegin() == expandedRange.getEnd()) {
         SmallString<32> buf;
-        return Lexer::getSpelling(expandedRange.getBegin(), buf, SM, langOpts);
+        return Lexer::getSpelling(expandedRange.getBegin(), buf, SM, langOpts)
+            .str();
       }
     }
   }
 
   if (auto DR = dyn_cast<DeclRefExpr>(baseExpr)) {
     // If n is an identifier, return its name.
-    return DR->getDecl()->getName();
+    return DR->getDecl()->getName().str();
   } else if (isa<IntegerLiteral>(baseExpr) || isa<CharacterLiteral>(baseExpr) ||
              isa<FloatingLiteral>(baseExpr) || isa<StringLiteral>(baseExpr) ||
              isa<ImaginaryLiteral>(baseExpr) ||
@@ -76,7 +78,7 @@ std::string exprName(const Expr *CE, const Expr *expr, const SourceManager &SM,
     std::string result;
     llvm::raw_string_ostream stream(result);
     baseExpr->printPretty(stream, nullptr, langOpts);
-    return "LIT:" + stream.str();
+    return stream.str();
   } else if (isa<CXXThisExpr>(baseExpr)) {
     // If n is an update expression that increments or decrements x, return
     // name(x).
@@ -99,11 +101,20 @@ std::string exprName(const Expr *CE, const Expr *expr, const SourceManager &SM,
   } else if (auto UO = dyn_cast<UnaryOperator>(baseExpr)) {
     return exprName(CE, UO->getSubExpr(), SM, langOpts);
   } else if (auto UE = dyn_cast<UnaryExprOrTypeTraitExpr>(baseExpr)) {
-    if (UE->isArgumentType()) {
-      return UE->getTypeOfArgument().getAsString();
-    } else {
-      return exprName(CE, UE->getArgumentExpr(), SM, langOpts);
+    // FIXME: Clang 11 has getTraitSpelling() in clang/Basic/TypeTraits.h
+    switch (UE->getKind()) {
+    case UETT_SizeOf:
+      return "sizeof";
+    case UETT_AlignOf:
+      return "alignof";
+    case UETT_PreferredAlignOf:
+      return "__alignof";
+    case UETT_VecStep:
+      return "vec_step";
+    case UETT_OpenMPRequiredSimdAlign:
+      return "__builtin_omp_required_simd_align";
     }
+    llvm_unreachable("unknown unary expression type");
   } else if (auto NTTP = dyn_cast<SubstNonTypeTemplateParmExpr>(baseExpr)) {
     return NTTP->getParameter()->getDeclName().getAsString();
   }
