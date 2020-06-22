@@ -21,6 +21,7 @@ add_definitions(${LLVM_DEFINITIONS})
 
 add_llvm_library(SwapDetectorPlugin MODULE
                  ExprNames.cpp
+                 ExprNamesInspectionChecker.cpp
                  Plugin.cpp
                  SwappedArgCheckerPlugin.cpp
                  PLUGIN_TOOL
