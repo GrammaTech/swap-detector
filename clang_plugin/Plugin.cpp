@@ -52,7 +52,7 @@ extern "C" void clang_registerCheckers(CheckerRegistry &registry) {
   registry.addChecker(&initializeSwappedArgChecker, &alwaysRegister,
                       "gt.SwapDetector", "Check for swapped arguments", "",
                       false);
-  registry.addChecker<ExprInspectionChecker>(
+  registry.addChecker<ExprNamesInspectionChecker>(
       "gt.ExprNames", "Print expr names for regression tests", "");
 }
 
