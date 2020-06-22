@@ -19,7 +19,6 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdio>
-#include <experimental/iterator>
 #include <iostream>
 #include <iterator>
 #include <sstream>
@@ -28,7 +27,8 @@
 namespace swapped_arg {
 class Statistics {
   sqlite3* db = nullptr;
-  sqlite3_stmt* query = nullptr;
+  sqlite3_stmt* morph_value_query = nullptr;
+  sqlite3_stmt* value_query = nullptr;
 
 public:
   explicit Statistics(const std::string& path) {
@@ -41,12 +41,19 @@ public:
       (void)sqlite3_prepare_v2(
           db,
           "SELECT morpheme, value FROM weights WHERE func == ? AND arg == ?",
-          -1, &query, nullptr);
+          -1, &morph_value_query, nullptr);
+      (void)sqlite3_prepare_v2(db,
+                               "SELECT value FROM weights WHERE func == ? AND "
+                               "arg == ? AND morpheme == ?",
+                               -1, &value_query, nullptr);
     }
   }
   ~Statistics() {
-    if (query) {
-      (void)sqlite3_finalize(query);
+    if (morph_value_query) {
+      (void)sqlite3_finalize(morph_value_query);
+    }
+    if (value_query) {
+      (void)sqlite3_finalize(value_query);
     }
     if (db) {
       (void)sqlite3_close(db);
@@ -55,7 +62,52 @@ public:
 
   // Returns true if the Statistics class has a valid statistics database,
   // false otherwise.
-  bool valid() const { return db != nullptr && query != nullptr; }
+  bool valid() const {
+    return db != nullptr && morph_value_query != nullptr &&
+           value_query != nullptr;
+  }
+
+  // Finds how often the given morpheme is used at the specified position for a
+  // given function call. Returns nullopt if the function does not exist or the
+  // argument position is invalid.
+  std::optional<float> weightForMorphemeAtPos(const std::string& funcName,
+                                              size_t argPos,
+                                              const std::string& morpheme) {
+    assert(valid() && "no valid database loaded");
+
+    // Helper RAII structure which binds the query arguments to the query on
+    // construction and resets the query on destruction.
+    class Binder {
+      sqlite3_stmt* query;
+
+    public:
+      Binder(sqlite3_stmt* stmt, const std::string& funcName, size_t argPos,
+             const std::string& morpheme)
+          : query(stmt) {
+        (void)sqlite3_bind_text(query, 1, funcName.c_str(), -1,
+                                SQLITE_TRANSIENT);
+        (void)sqlite3_bind_int64(query, 2, static_cast<sqlite3_int64>(argPos));
+        (void)sqlite3_bind_text(query, 3, morpheme.c_str(), -1,
+                                SQLITE_TRANSIENT);
+      }
+      ~Binder() {
+        (void)sqlite3_clear_bindings(query);
+        (void)sqlite3_reset(query);
+      }
+    } binder(value_query, funcName, argPos, morpheme);
+
+    for (;;) {
+      int rc = sqlite3_step(value_query);
+      if (rc == SQLITE_DONE) {
+        break;
+      } else if (rc == SQLITE_ROW) {
+        return static_cast<float>(sqlite3_column_double(value_query, 0));
+      } else {
+        break;
+      }
+    }
+    return std::nullopt;
+  }
 
   // Finds all morphemes for the given function call and argument position, as
   // well as the scaled weight for each morpheme. The sum of the weights at
@@ -82,18 +134,19 @@ public:
         (void)sqlite3_clear_bindings(query);
         (void)sqlite3_reset(query);
       }
-    } binder(query, funcName, argPos);
+    } binder(morph_value_query, funcName, argPos);
 
     bool ret = false;
     for (;;) {
-      int rc = sqlite3_step(query);
+      int rc = sqlite3_step(morph_value_query);
       if (rc == SQLITE_DONE) {
         break;
       } else if (rc == SQLITE_ROW) {
         ret = true;
-        res.emplace_back(std::string(reinterpret_cast<const char*>(
-                             sqlite3_column_text(query, 0))),
-                         static_cast<float>(sqlite3_column_double(query, 1)));
+        res.emplace_back(
+            std::string(reinterpret_cast<const char*>(
+                sqlite3_column_text(morph_value_query, 0))),
+            static_cast<float>(sqlite3_column_double(morph_value_query, 1)));
       } else {
         return false;
       }
@@ -165,7 +218,7 @@ pairwise_combinations(size_t totalCount) {
   return ret;
 }
 
-// Returns true if the checker reported any issues; false otherwise.
+// Returns a Result if the checker reported any issues; nullopt otherwise.
 std::optional<Result> Checker::checkForCoverBasedSwap(
     const std::pair<MorphemeSet, MorphemeSet>& params,
     const std::pair<MorphemeSet, MorphemeSet>& args, const CallSite& site) {
@@ -248,15 +301,51 @@ std::optional<Result> Checker::checkForCoverBasedSwap(
   float psi_i = mm_ai_pj / (mm_aj_pj + 0.01f),
         psi_j = mm_aj_pi / (mm_ai_pi + 0.01f);
   float worst_psi = std::min(psi_i, psi_j);
-  // TODO: When adding the stats-based checker, this should become non-const
-  // and be set to true if we attempted to run the stats-based checker.
-  const bool verified_with_stats = false;
+  // If stats were enabled, this will hold the maximum confidence value found
+  // when doing stats vetting. If this value is above a given threshold, then
+  // no diagnostic will be reported.
+  std::optional<float> stats_score;
+
+  if (Stats) {
+    // If the stats database is available then it can be used to determine if
+    // unique argument morphemes for argument 1 are more common at position 1
+    // than at position 2. Similarly, the unique argument morphemes for argument
+    // 2 are checked to see if they're more common at position 2 than position 1.
+    // If either argument is sufficiently more common, then we can bail out,
+    // otherwise we can note the score on the score card. This is similar to
+    // what's done by the stats-based checker, but in this case we check how
+    // much more common the morpheme is where it is (opposite to the stats
+    // checker).
+    assert(Stats->valid() && "Expected the stats to be valid");
+    std::for_each(
+        uniqueMorphsArg1.begin(), uniqueMorphsArg1.end(),
+        [&](const std::string& morph) {
+          if (auto val = morphemeConfidenceAtPosition(
+                  site, morph, args.first.Position, args.second.Position)) {
+            stats_score = std::max(stats_score.value_or(0.0f), *val);
+          }
+        });
+    std::for_each(
+        uniqueMorphsArg2.begin(), uniqueMorphsArg2.end(),
+        [&](const std::string& morph) {
+          if (auto val = morphemeConfidenceAtPosition(
+                  site, morph, args.second.Position, args.first.Position)) {
+            stats_score = std::max(stats_score.value_or(0.0f), *val);
+          }
+        });
+
+    // If the confidence is high that this is NOT a swap, then bail out, but
+    // only if we were able to calculate a statistical score. It's plausible
+    // that there is no statistical information for the function.
+    if (stats_score && *stats_score > Opts.CoverSwappedStatsVettingThreshold) {
+      return std::nullopt;
+    }
+  }
 
   Result r;
   r.arg1 = args.first.Position + 1;
   r.arg2 = args.second.Position + 1;
-  r.score = std::make_unique<ParameterNameBasedScoreCard>(worst_psi,
-                                                          verified_with_stats);
+  r.score = std::make_unique<ParameterNameBasedScoreCard>(worst_psi, stats_score);
   r.morphemes1 = uniqueMorphsArg1;
   r.morphemes2 = uniqueMorphsArg2;
 #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ == 7
@@ -321,15 +410,26 @@ Checker::morphemeSetDifference(const MorphemeSet& one,
   return ret;
 }
 
-float Checker::morphemeConfidenceAtPosition(
-    const std::string& morph, size_t pos, size_t comparedToPos,
-    const std::set<std::string>& paramMorphs) const {
-  // TODO: implement this properly. This is a placeholder implementation that
-  // considers a matching parameter morpheme at that position to be a high
-  // confidence.
-  if (paramMorphs.count(morph) > 0)
+std::optional<float>
+Checker::morphemeConfidenceAtPosition(const CallSite& callSite,
+                                      const std::string& morph, size_t pos,
+                                      size_t comparedToPos) const {
+  assert(Stats && Stats->valid() && "Expected to have valid statistics");
+  auto pos1 = Stats->weightForMorphemeAtPos(
+           callSite.callDecl.fullyQualifiedName, pos, morph),
+       pos2 = Stats->weightForMorphemeAtPos(
+           callSite.callDecl.fullyQualifiedName, comparedToPos, morph);
+  // If pos1 exists but pos2 does not exist, that means the confidence at pos is
+  // high because the morpheme never appears at comparedToPos. If pos2 exists
+  // but pos1 does not, that means the confidence at pos is low because the
+  // morpheme never appears there.
+  if (pos1 && !pos2)
     return 1.0f;
-  return 0.0f;
+  if (pos2 && !pos1)
+    return 0.0f;
+  if (pos1 && pos2)
+    return *pos1 / *pos2;
+  return std::nullopt;
 }
 
 float Checker::similarity(const std::string& morph1,
@@ -339,10 +439,11 @@ float Checker::similarity(const std::string& morph1,
 }
 
 float Checker::fit(const std::string& morph, const CallSite& site,
-                   size_t argPos, Statistics& stats) const {
+                   size_t argPos) const {
+  assert(Stats && Stats->valid() && "Expected to have valid statistics");
   std::string funcName = site.callDecl.fullyQualifiedName;
   std::vector<std::pair<std::string, float>> morphsAndWeightsAtPos;
-  if (!stats.morphemesAndWeightsAtPos(funcName, argPos, morphsAndWeightsAtPos))
+  if (!Stats->morphemesAndWeightsAtPos(funcName, argPos, morphsAndWeightsAtPos))
     return 0.0f;
 
   float ret = 0.0f;
@@ -354,8 +455,7 @@ float Checker::fit(const std::string& morph, const CallSite& site,
 
 std::optional<Result> Checker::checkForStatisticsBasedSwap(
     const std::pair<MorphemeSet, MorphemeSet>& params,
-    const std::pair<MorphemeSet, MorphemeSet>& args, const CallSite& callSite,
-    Statistics& stats) {
+    const std::pair<MorphemeSet, MorphemeSet>& args, const CallSite& callSite) {
   MorphemeSet uniqArgMorphs1 = morphemeSetDifference(args.first, args.second),
               uniqArgMorphs2 = morphemeSetDifference(args.second, args.first);
 
@@ -365,14 +465,14 @@ std::optional<Result> Checker::checkForStatisticsBasedSwap(
       // than position 1, and how much more common the second morpheme is at
       // position 1 than position 2. If they seem to not be commonly swapped,
       // move on.
-      float psi1 = morphemeConfidenceAtPosition(
-                argMorph1, uniqArgMorphs2.Position, uniqArgMorphs1.Position,
-                params.second.Morphemes),
-            psi2 = morphemeConfidenceAtPosition(
-                argMorph2, uniqArgMorphs1.Position, uniqArgMorphs2.Position,
-                params.first.Morphemes);
-      if (psi1 <= Opts.StatsSwappedMorphemeThreshold ||
-          psi2 <= Opts.StatsSwappedMorphemeThreshold) {
+      std::optional<float> psi1 = morphemeConfidenceAtPosition(
+                               callSite, argMorph1, uniqArgMorphs2.Position,
+                               uniqArgMorphs1.Position),
+                           psi2 = morphemeConfidenceAtPosition(
+                               callSite, argMorph2, uniqArgMorphs1.Position,
+                               uniqArgMorphs2.Position);
+      if (!psi1 || !psi2 || *psi1 <= Opts.StatsSwappedMorphemeThreshold ||
+          *psi2 <= Opts.StatsSwappedMorphemeThreshold) {
         continue;
       }
 
@@ -391,8 +491,8 @@ std::optional<Result> Checker::checkForStatisticsBasedSwap(
 
       // Determine the fitness of the first arg morpheme compared to the second
       // and vice versa to see if it exceeds a threshold.
-      float fit1 = fit(argMorph1, callSite, args.second.Position, stats),
-            fit2 = fit(argMorph2, callSite, args.first.Position, stats);
+      float fit1 = fit(argMorph1, callSite, args.second.Position),
+            fit2 = fit(argMorph2, callSite, args.first.Position);
       if (fit1 > Opts.StatsSwappedFitnessThreshold &&
           fit2 > Opts.StatsSwappedFitnessThreshold) {
         // Return the statistical swap result.
@@ -400,7 +500,7 @@ std::optional<Result> Checker::checkForStatisticsBasedSwap(
         r.arg1 = args.first.Position + 1;
         r.arg2 = args.second.Position + 1;
         r.score = std::make_unique<UsageStatisticsBasedScoreCard>(fit1, fit2,
-                                                                  psi1, psi2);
+                                                                  *psi1, *psi2);
         r.morphemes1 = uniqArgMorphs1.Morphemes;
         r.morphemes2 = uniqArgMorphs2.Morphemes;
 #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ == 7
@@ -468,19 +568,42 @@ std::vector<Result> Checker::CheckSite(const CallSite& site, Check whichCheck) {
     if (std::optional<std::string> n = getParamName(site, pairwiseArgs.second))
       param2 = *n;
 
-    if (!param1.empty() && !param2.empty()) {
-      // Having verified we might be able to run the cover-based checker, now
-      // split the parameter identifiers into individual morphemes and verify
-      // that we have at least one usable morpheme for each parameter.
-      // FIXME: currently, the stub for IdentifierSplitter has no state and
-      // requires no parameterization. If that continues to be true after
-      // adding the real implementation, this should be replaced with a free
-      // function. If it does have state, this may also be more natural as a
-      // data member rather than a local.
-      IdentifierSplitter splitter;
-      MorphemeSet param1Morphemes{splitter.split(param1), pairwiseArgs.first},
-          param2Morphemes{splitter.split(param2), pairwiseArgs.second};
+    // FIXME: currently, the stub for IdentifierSplitter has no state and
+    // requires no parameterization. If that continues to be true after
+    // adding the real implementation, this should be replaced with a free
+    // function. If it does have state, this may also be more natural as a
+    // data member rather than a local.
+    IdentifierSplitter splitter;
+    MorphemeSet param1Morphemes{splitter.split(param1), pairwiseArgs.first},
+        param2Morphemes{splitter.split(param2), pairwiseArgs.second};
 
+    // Do the same thing for arguments, except all argument components are
+    // split into the same set. e.g., foo(bar.baz(), 0) may split the first
+    // argument into the set [bar, baz]. Verify there is at least one usable
+    // morpheme for each argument.
+    // FIXME: Currently, the first argument will not produce any morphemes
+    // because we've not decided to stick with this approach. If we continue
+    // to produce only one identifier per argument, consider flattening the
+    // interface of how we represent arguments.
+    auto morphemeCollector = [&args, &splitter](MorphemeSet& m, size_t pos) {
+      m.Position = pos;
+      for (const auto& arg : args[pos]) {
+        const auto& morphs = splitter.split(arg);
+        m.Morphemes.insert(morphs.begin(), morphs.end());
+      }
+    };
+
+    MorphemeSet arg1Morphemes, arg2Morphemes;
+    morphemeCollector(arg1Morphemes, pairwiseArgs.first);
+    morphemeCollector(arg2Morphemes, pairwiseArgs.second);
+
+    // Similar to parameters, remove any low quality morphemes from the
+    // arguments and bail out if this leaves us with no usable morphemes.
+    if (removeLowQualityMorphemes(arg1Morphemes.Morphemes) ||
+        removeLowQualityMorphemes(arg2Morphemes.Morphemes))
+      continue;
+
+    if (!param1.empty() && !param2.empty()) {
       // Having split the parameter identifiers into morphemes, remove any
       // morphemes that are low quality and bail out if there are no usable
       // morphemes left for either parameter. Consider: void foo(int i, int j);
@@ -488,32 +611,6 @@ std::vector<Result> Checker::CheckSite(const CallSite& site, Check whichCheck) {
       // warrant ignoring it.
       if (removeLowQualityMorphemes(param1Morphemes.Morphemes) ||
           removeLowQualityMorphemes(param2Morphemes.Morphemes))
-        continue;
-
-      // Do the same thing for arguments, except all argument components are
-      // split into the same set. e.g., foo(bar.baz(), 0) may split the first
-      // argument into the set [bar, baz]. Verify there is at least one usable
-      // morpheme for each argument.
-      // FIXME: Currently, the first argument will not produce any morphemes
-      // because we've not decided to stick with this approach. If we continue
-      // to produce only one identifier per argument, consider flattening the
-      // interface of how we represent arguments.
-      auto morphemeCollector = [&args, &splitter](MorphemeSet& m, size_t pos) {
-        m.Position = pos;
-        for (const auto& arg : args[pos]) {
-          const auto& morphs = splitter.split(arg);
-          m.Morphemes.insert(morphs.begin(), morphs.end());
-        }
-      };
-
-      MorphemeSet arg1Morphemes, arg2Morphemes;
-      morphemeCollector(arg1Morphemes, pairwiseArgs.first);
-      morphemeCollector(arg2Morphemes, pairwiseArgs.second);
-
-      // Similar to parameters, remove any low quality morphemes from the
-      // arguments and bail out if this leaves us with no usable morphemes.
-      if (removeLowQualityMorphemes(arg1Morphemes.Morphemes) ||
-          removeLowQualityMorphemes(arg2Morphemes.Morphemes))
         continue;
 
       // Run the cover-based checker first.
@@ -525,20 +622,17 @@ std::vector<Result> Checker::CheckSite(const CallSite& site, Check whichCheck) {
           continue;
         }
       }
+    }
 
-      // If that didn't find anything, run the statistics-based checker.
-      // FIXME: this generates a fake statistics database. It should be
-      // replaced with the real database.
-      if (whichCheck == Check::All || whichCheck == Check::StatsBased) {
-        if (!Stats)
-          continue;
-        assert(Stats->valid() && "Expected valid statistics by this point");
+    // If that didn't find anything, run the statistics-based checker.
+    if ((whichCheck == Check::All || whichCheck == Check::StatsBased) &&
+        Stats) {
+      assert(Stats->valid() && "Expected valid statistics by this point");
 
-        if (std::optional<Result> statsWarning = checkForStatisticsBasedSwap(
-                std::make_pair(param1Morphemes, param2Morphemes),
-                std::make_pair(arg1Morphemes, arg2Morphemes), site, *Stats)) {
-          results.push_back(std::move(*statsWarning));
-        }
+      if (std::optional<Result> statsWarning = checkForStatisticsBasedSwap(
+              std::make_pair(param1Morphemes, param2Morphemes),
+              std::make_pair(arg1Morphemes, arg2Morphemes), site)) {
+        results.push_back(std::move(*statsWarning));
       }
     }
   }

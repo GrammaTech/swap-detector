@@ -74,14 +74,15 @@ public:
 
 class ParameterNameBasedScoreCard : public ScoreCard {
   float Score;
-  bool WasStatsCheckerRun;
+  std::optional<float> StatsVettedScore;
 
 public:
-  explicit ParameterNameBasedScoreCard(float score, bool statsChecked)
-      : Score(score), WasStatsCheckerRun(statsChecked) {}
+  explicit ParameterNameBasedScoreCard(float score, std::optional<float> statsVettedScore)
+      : Score(score), StatsVettedScore(statsVettedScore) {}
   CheckerKind kind() const override { return ParameterNameBased; }
   float score() const override { return Score; }
-  bool wasStatsCheckerRun() const { return WasStatsCheckerRun; }
+  bool vettedWithStats() const { return StatsVettedScore.has_value(); }
+  float statsVettedScore() const { return *StatsVettedScore; }
 };
 
 class UsageStatisticsBasedScoreCard : public ScoreCard {
@@ -129,6 +130,9 @@ struct CheckerConfiguration {
   // Comparison value used to determine whether a potential swap is
   // sufficiently fit or not.
   float StatsSwappedFitnessThreshold = 0.75f; // FIXME: made up number!!
+  // Comparison value used to determine whether a potential cover based swap
+  // should be suppressed due to stats vetting.
+  float CoverSwappedStatsVettingThreshold = 0.75f; // FIXME: made up number!!
 };
 
 
@@ -201,15 +205,16 @@ class Checker {
   std::optional<Result>
   checkForStatisticsBasedSwap(const std::pair<MorphemeSet, MorphemeSet>& params,
                               const std::pair<MorphemeSet, MorphemeSet>& args,
-                              const CallSite& callSite, Statistics& stats);
+                              const CallSite& callSite);
   // Determines the confidence of how much more common it is to see the given
   // morpheme at the given position compared to another position. Returns values
-  // in the range 0.0f (for no confidence) to infinity (for highest confidence).
-  // FIXME: remove the paramMorphs parameter when doing the real implementation.
-  float
-  morphemeConfidenceAtPosition(const std::string& morph, size_t pos,
-                               size_t comparedToPos,
-                               const std::set<std::string>& paramMoprphs) const;
+  // in the range 0.0f (for no confidence) to 1.0 (for highest confidence) if
+  // the function exists. Returns nullopt if the function cannot be found or if
+  // the morpheme cannot be located at either position.
+  std::optional<float> morphemeConfidenceAtPosition(const CallSite& callSite,
+                                                    const std::string& morph,
+                                                    size_t pos,
+                                                    size_t comparedToPos) const;
 
   // Determines how "similar" two morphemes are, including abbreviations and
   // synonyms. Returns a value between [0, 1).
@@ -218,8 +223,8 @@ class Checker {
   // Determines the fitness of a potential swap of the given morpheme when
   // compared to the other morphemes used at that position in other function
   // calls. Returns a value between [0, 1).
-  float fit(const std::string& morph, const CallSite& site, size_t argPos,
-            Statistics& stats) const;
+  float fit(const std::string& morph, const CallSite& site,
+            size_t argPos) const;
 
 public:
   Checker() = default;

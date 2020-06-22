@@ -1,7 +1,7 @@
 // RUN: %clang_analyze_cc1 -load %llvmshlibdir/SwapDetectorPlugin%shlibext -analyzer-checker=gt.SwapDetector -analyzer-config gt.SwapDetector:ModelPath=%S/test.db -verify %s
 // REQUIRES: plugins
 
-void func(int cats, int dogs);
+void func(int, int);
 
 int main(void) {
   int dogs = 1, cats = 2;
