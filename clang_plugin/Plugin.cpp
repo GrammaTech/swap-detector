@@ -14,12 +14,24 @@
 //
 //===----------------------------------------------------------------------===//
 
-/*
- * Extracts information about API usage.
- *
- * USAGE:
- * clang -cc1 -w -analyze -load APIExtractor.dylib -analyzer-checker=gt,alpha.security.taint foo.c 
- */
+// Defines the Clang static analyzer plugin interfaces for two checkers:
+// gt.SwapDetector
+//   Detects argument swaps at a call site based on either the names of the
+//   parameters for the function being calls, or based on statistical
+//   information gathered about how the function is typically called.
+//
+//   This checker has a ModelPath configuration option used to specify the path
+//   to the statistics database to be used by the tool. Defaults to not using a
+//   statistics database.
+//
+// gt.ExprNames
+//    Used to help test the expression name extraction functionality and is not
+//    likely to be useful in other contexts.
+//
+// Usage: scan-build -load-plugin SwapDetectorPlugin.so
+//                   -enable-checker gt.SwapDetector
+//                   -analyzer-config gt.SwapDetector:ModelPath=sample.db
+//        clang <options> source_file
 
 #include "ExprNamesInspectionChecker.hpp"
 #include "SwappedArgCheckerPlugin.hpp"
