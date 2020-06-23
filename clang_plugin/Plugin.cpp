@@ -19,14 +19,6 @@
  *
  * USAGE:
  * clang -cc1 -w -analyze -load APIExtractor.dylib -analyzer-checker=gt,alpha.security.taint foo.c 
- *
- * Further reading:
- * - http://clang-analyzer.llvm.org/checker_dev_manual.html
- * - https://github.com/haoNoQ/clang-analyzer-guide/releases/download/v0.1/clang-analyzer-guide-v0.1.pdf
- * - "A memory model for static analysis of C programs" by Xu, Kremenek, and
- *   Zhang
- * - "Precise interprocedural dataflow analysis via graph reachability" by Reps,
- *   Horwitz, and Sagiv
  */
 
 #include "ExprNamesInspectionChecker.hpp"

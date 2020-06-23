@@ -1,6 +1,14 @@
 # Swap Detector
 
-Module that checks for swapped arguments in function calls.
+Module that checks for swapped arguments in function calls. For instance, the
+library can be used to detect swaps in code like:
+```c
+/* Apparent swap of 'e' and 'n' based on parameter names. */
+RSA_get0_key(rkey, &e, &n, NULL);
+/* Apparent swap of 'xinput_error_base' and 'xinput_event_base' based on stats. */
+XQueryExtension(display, "XInputExtension", &xinput_opcode, &xinput_error_base,
+                &xinput_event_base);
+```
 
 ## Prerequisites
 * CMake 3.10
