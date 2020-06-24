@@ -51,8 +51,12 @@ There is a linker warning about use of `tmpnam`. This API is only used by the te
 #### Example
 
 ```bash
-../../llvm-install/bin/scan-build -load-plugin lib/SwapDetectorPlugin.so -enable-checker gt.SwapDetector -analyzer-config gt.SwapDetector:ModelPath=model.db clang++ ~/dummy.cpp
+../../llvm-install/bin/scan-build -load-plugin lib/SwapDetectorPlugin.so -enable-checker gt.SwapDetector -analyzer-config gt.SwapDetector:ModelPath=sample.db clang++ ~/dummy.cpp
 ```
+The root directory of the repository has a sample database, named `sample.db`,
+which can be used to explore the behavior of the library. This database is not
+complete (it only covers ten functions), but does contain statistically useful
+information about the functions it covers.
 
 ### Configuration Options
 Option | Description
