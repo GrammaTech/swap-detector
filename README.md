@@ -64,7 +64,7 @@ Option | Description
 `SWAPPED_ARGS_INSTALL_PYTHON` | Enables installing the Python extension if it's been built. Default: Off
 
 ### Automatic Downloads
-As part of the CMake configuration, the latest master branch of [googletest] (https://github.com/google/googletest) is downloaded and built if testing
+As part of the CMake configuration, the latest master branch of [googletest](https://github.com/google/googletest) is downloaded and built if testing
 functionality is enabled.
 
 ### Testing
