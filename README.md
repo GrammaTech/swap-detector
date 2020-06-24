@@ -1,6 +1,11 @@
 # Swap Detector
 
-Module that checks for swapped arguments in function calls.
+Module that checks for swapped arguments in function calls. For instance, the
+library can be used to detect swaps in code like:
+```c
+/* Apparent swap of 'e' and 'n' based on parameter names. */
+RSA_get0_key(rkey, &e, &n, NULL);
+```
 
 ## Prerequisites
 * CMake 3.10
@@ -27,7 +32,7 @@ popd
 pip install --user lit
 export PATH=$PATH:$HOME/.local/bin
 ```
-* Use cmake to build the plugin:
+### Use cmake to build the plugin
 ```bash
 mkdir build; cd build
 cmake -G Ninja -DLLVM_EXTERNAL_LIT=$(which lit) -DSWAPPED_ARGS_BUILD_CLANG_PLUGIN=ON -DCMAKE_PREFIX_PATH=$PWD/../../llvm-install/lib/cmake ~/path/to/swap-detector
@@ -43,8 +48,12 @@ There is a linker warning about use of `tmpnam`. This API is only used by the te
 #### Example
 
 ```bash
-../../llvm-install/bin/scan-build -load-plugin lib/SwapDetectorPlugin.so -enable-checker gt.SwapDetector -analyzer-config gt.SwapDetector:ModelPath=model.db clang++ ~/dummy.cpp
+../../llvm-install/bin/scan-build -load-plugin lib/SwapDetectorPlugin.so -enable-checker gt.SwapDetector -analyzer-config gt.SwapDetector:ModelPath=sample.db clang++ ~/dummy.cpp
 ```
+The root directory of the repository has a sample database, named `sample.db`,
+which can be used to explore the behavior of the library. This database is not
+complete (it only covers ten functions), but does contain statistically useful
+information about the functions it covers.
 
 ### Configuration Options
 Option | Description
@@ -55,14 +64,15 @@ Option | Description
 `SWAPPED_ARGS_INSTALL_PYTHON` | Enables installing the Python extension if it's been built. Default: Off
 
 ### Automatic Downloads
-As part of the CMake configuration, the latest master branch of [googletest]
-(https://github.com/google/googletest) is downloaded and built if testing
+As part of the CMake configuration, the latest master branch of [googletest] (https://github.com/google/googletest) is downloaded and built if testing
 functionality is enabled.
 
 ### Testing
 To run the C++ unit tests, ensure that `SWAPPED_ARGS_BUILD_TESTS` is not
 disabled when configuring the cmake project. The `TestSwappedArgsCpp` executable
 will be generated on successful build and can be run to perform unit testing.
+
+To run the Clang plugin tests, you can execute ``cmake --build . --target check-all`` from the CMake build directory.
 
 #### Acknowledgements
 This material is based on research sponsored by the Department of Homeland

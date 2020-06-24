@@ -225,10 +225,6 @@ std::optional<Result> Checker::checkForCoverBasedSwap(
   // We have already verified that the morpheme sets are not empty, but we
   // also need to verify that the number of morphemes is the same between each
   // parameter and argument.
-  // FIXME: Roger thinks that we may relax the requirement that the number of
-  // morphemes are the same between params and args, but isn't 100% certain yet.
-  // If that happens, we will have to figure out what to do with the "extra"
-  // morphemes in terms of scoring coverage.
   const std::set<std::string>&param1Morphs = params.first.Morphemes,
         &param2Morphs = params.second.Morphemes;
   const std::set<std::string>&arg1Morphs = args.first.Morphemes,
