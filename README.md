@@ -5,9 +5,6 @@ library can be used to detect swaps in code like:
 ```c
 /* Apparent swap of 'e' and 'n' based on parameter names. */
 RSA_get0_key(rkey, &e, &n, NULL);
-/* Apparent swap of 'xinput_error_base' and 'xinput_event_base' based on stats. */
-XQueryExtension(display, "XInputExtension", &xinput_opcode, &xinput_error_base,
-                &xinput_event_base);
 ```
 
 ## Prerequisites
@@ -35,7 +32,7 @@ popd
 pip install --user lit
 export PATH=$PATH:$HOME/.local/bin
 ```
-* Use cmake to build the plugin:
+### Use cmake to build the plugin
 ```bash
 mkdir build; cd build
 cmake -G Ninja -DLLVM_EXTERNAL_LIT=$(which lit) -DSWAPPED_ARGS_BUILD_CLANG_PLUGIN=ON -DCMAKE_PREFIX_PATH=$PWD/../../llvm-install/lib/cmake ~/path/to/swap-detector
@@ -74,6 +71,8 @@ functionality is enabled.
 To run the C++ unit tests, ensure that `SWAPPED_ARGS_BUILD_TESTS` is not
 disabled when configuring the cmake project. The `TestSwappedArgsCpp` executable
 will be generated on successful build and can be run to perform unit testing.
+
+To run the Clang plugin tests, you can execute ``cmake --build . --target check-all`` from the CMake build directory.
 
 #### Acknowledgements
 This material is based on research sponsored by the Department of Homeland
