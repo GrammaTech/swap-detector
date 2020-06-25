@@ -1,7 +1,6 @@
 Contributing
 ============
 
-
 ## Code of Conduct
 
 Please read the [Swap Detector Code of Conduct](CODE_OF_CONDUCT.md).
