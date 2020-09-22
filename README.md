@@ -74,6 +74,9 @@ will be generated on successful build and can be run to perform unit testing.
 
 To run the Clang plugin tests, you can execute ``cmake --build . --target check-all`` from the CMake build directory.
 
+### Research Paper
+We expand on the concepts and algorithms behind Swap Detector in a [research paper](https://arxiv.org/abs/2009.09117), published in the [2020 IEEE Source Code Analysis and Manipulation Conference](http://www.ieee-scam.org/2020/). Note that not all algorithms, heuristics, and features described in the research paper are present in this implementation.
+
 #### Acknowledgements
 This material is based on research sponsored by the Department of Homeland
 Security (DHS) Office of Procurement Operations, S&T acquisition Division via
